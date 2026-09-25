@@ -102,6 +102,15 @@
 
   <section class="card">
     <div class="card-head">
+      <div class="icon">🔑</div>
+      <div><h2>ウォレットを接続</h2><p>すべての記録はあなた自身のウォレットで署名されます（サーバー代理署名なし）</p></div>
+    </div>
+    <button id="connect-wallet">🦊 ウォレットを接続</button>
+    <div class="result" id="wallet-result"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
       <div class="icon">📝</div>
       <div><h2>開示請求を刻印する</h2><p>EASで改ざん不可能な証明としてBase Sepoliaに記録します</p></div>
     </div>
@@ -142,8 +151,74 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script>
 const API = "";
+const BASE_SEPOLIA_CHAIN_ID_HEX = "0x14a34"; // 84532
+const BASE_SEPOLIA_PARAMS = {
+  chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
+  chainName: "Base Sepolia",
+  nativeCurrency: { name: "Base Sepolia ETH", symbol: "ETH", decimals: 18 },
+  rpcUrls: ["https://sepolia.base.org"],
+  blockExplorerUrls: ["https://sepolia.basescan.org"],
+};
+const EAS_CONTRACT_ADDRESS = "0x4200000000000000000000000000000000000021";
+const ATTEST_SCHEMA_UID = "0x92cf840e48d7893e83e58e67e6209f0a9ad5b720bafdffc2fd740a38585d549a";
+const TIP_SCHEMA_UID = "0xf6fb59796ff4ef5c06765eb9ae4c00e11c784a377ba8e9116c3e97b0e04eb4ef";
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_BYTES32 = "0x" + "0".repeat(64);
+
+const EAS_ABI = [
+  "function attest((bytes32 schema,(address recipient,uint64 expirationTime,bool revocable,bytes32 refUID,bytes data,uint256 value) data) request) payable returns (bytes32)",
+  "event Attested(address indexed recipient, address indexed attester, bytes32 uid, bytes32 indexed schemaUID)",
+];
+
+let provider, signer, eas;
+
+async function connectWallet() {
+  const out = document.getElementById("wallet-result");
+  if (!window.ethereum) {
+    setResult(out, "❌ MetaMask等のウォレット拡張機能が見つかりません。", true);
+    return;
+  }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const network = await provider.getNetwork();
+    if ("0x" + network.chainId.toString(16) !== BASE_SEPOLIA_CHAIN_ID_HEX) {
+      try {
+        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: BASE_SEPOLIA_CHAIN_ID_HEX }] });
+      } catch (switchErr) {
+        if (switchErr.code === 4902) {
+          await window.ethereum.request({ method: "wallet_addEthereumChain", params: [BASE_SEPOLIA_PARAMS] });
+        } else {
+          throw switchErr;
+        }
+      }
+      provider = new ethers.BrowserProvider(window.ethereum);
+    }
+    signer = await provider.getSigner();
+    eas = new ethers.Contract(EAS_CONTRACT_ADDRESS, EAS_ABI, signer);
+    const address = await signer.getAddress();
+    setResult(out, `✅ 接続済み: <b>${address}</b>（Base Sepolia）`);
+    document.getElementById("connect-wallet").textContent = "🦊 " + short(address) + " 接続中";
+    document.getElementById("connect-wallet").disabled = true;
+  } catch (err) {
+    setResult(out, "❌ 接続失敗: " + err.message, true);
+  }
+}
+document.getElementById("connect-wallet").addEventListener("click", connectWallet);
+
+function requireWallet() {
+  if (!signer) throw new Error("先にウォレットを接続してください");
+}
+
+async function sha256Hex(file) {
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return "0x" + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function short(addr) { return addr ? addr.slice(0, 6) + "..." + addr.slice(-4) : ""; }
 function txLink(hash) { return `<a class="tx-link" href="https://sepolia.basescan.org/tx/${hash}" target="_blank">${short(hash)} ↗</a>`; }
 function setResult(el, html, isError = false) {
@@ -157,18 +232,26 @@ document.getElementById("attest-form").addEventListener("submit", async (e) => {
   const btn = e.target.querySelector("button");
   const out = document.getElementById("attest-result");
   btn.disabled = true;
-  setResult(out, "⏳ 送信中...");
-  const fd = new FormData();
-  fd.append("file", document.getElementById("file").files[0]);
-  fd.append("target_authority", document.getElementById("target_authority").value);
-  fd.append("request_type", document.getElementById("request_type").value);
-  fd.append("summary", document.getElementById("summary").value);
   try {
-    const res = await fetch(`${API}/attest`, { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data));
-    setResult(out, `✅ 刻印完了<br>attestation UID: <b>${data.attestation_uid}</b><br>tx: ${txLink(data.tx_hash)}`);
-    document.getElementById("ref_attestation_uid").value = data.attestation_uid;
+    requireWallet();
+    setResult(out, "⏳ ウォレットで署名してください...");
+    const file = document.getElementById("file").files[0];
+    const docHash = await sha256Hex(file);
+    const targetAuthority = document.getElementById("target_authority").value;
+    const requestType = document.getElementById("request_type").value;
+    const summary = document.getElementById("summary").value;
+    const coder = ethers.AbiCoder.defaultAbiCoder();
+    const encodedData = coder.encode(["string", "string", "bytes32", "string"], [targetAuthority, requestType, docHash, summary]);
+    const tx = await eas.attest({
+      schema: ATTEST_SCHEMA_UID,
+      data: { recipient: ZERO_ADDRESS, expirationTime: 0, revocable: true, refUID: ZERO_BYTES32, data: encodedData, value: 0 },
+    });
+    setResult(out, "⏳ ブロック確定を待っています...");
+    const receipt = await tx.wait();
+    const parsed = receipt.logs.map((log) => { try { return eas.interface.parseLog(log); } catch { return null; } }).find((l) => l && l.name === "Attested");
+    const uid = parsed.args.uid;
+    setResult(out, `✅ 刻印完了（あなたのウォレットで署名済み）<br>attestation UID: <b>${uid}</b><br>tx: ${txLink(receipt.hash)}`);
+    document.getElementById("ref_attestation_uid").value = uid;
   } catch (err) {
     setResult(out, "❌ エラー: " + err.message, true);
   } finally {
@@ -181,20 +264,25 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
   const btn = e.target.querySelector("button");
   const out = document.getElementById("tip-result");
   btn.disabled = true;
-  setResult(out, "⏳ 送信中...");
-  const referrer = document.getElementById("referrer_address").value.trim();
-  const body = {
-    recipient_address: document.getElementById("recipient_address").value,
-    ref_attestation_uid: document.getElementById("ref_attestation_uid").value,
-    amount_wei: Math.round(parseFloat(document.getElementById("amount_eth").value) * 1e18),
-    comment: document.getElementById("comment").value,
-  };
-  if (referrer) body.referrer_address = referrer;
   try {
-    const res = await fetch(`${API}/tip`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data));
-    setResult(out, `✅ 投げ銭完了<br>送金tx: ${txLink(data.transfer_tx_hash)}<br>記録tx: ${txLink(data.attestation_tx_hash)}`);
+    requireWallet();
+    const recipient = document.getElementById("recipient_address").value;
+    const refUid = document.getElementById("ref_attestation_uid").value;
+    const amountWei = ethers.parseEther(document.getElementById("amount_eth").value || "0");
+    const comment = document.getElementById("comment").value;
+    const referrer = document.getElementById("referrer_address").value.trim() || ZERO_ADDRESS;
+    setResult(out, "⏳ 送金を署名してください...(1/2)");
+    const transferTx = await signer.sendTransaction({ to: recipient, value: amountWei });
+    const transferReceipt = await transferTx.wait();
+    setResult(out, "⏳ 応援記録を署名してください...(2/2)");
+    const coder = ethers.AbiCoder.defaultAbiCoder();
+    const encodedData = coder.encode(["address", "uint256", "string"], [referrer, amountWei, comment]);
+    const attestTx = await eas.attest({
+      schema: TIP_SCHEMA_UID,
+      data: { recipient, expirationTime: 0, revocable: true, refUID: refUid, data: encodedData, value: 0 },
+    });
+    const attestReceipt = await attestTx.wait();
+    setResult(out, `✅ 投げ銭完了（あなたのウォレットで署名済み）<br>送金tx: ${txLink(transferReceipt.hash)}<br>記録tx: ${txLink(attestReceipt.hash)}`);
     loadLeaderboard();
   } catch (err) {
     setResult(out, "❌ エラー: " + err.message, true);

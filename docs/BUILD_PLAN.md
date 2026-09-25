@@ -10,7 +10,7 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 - [x] **Stage 3: 投げ銭（ETH）** — `tip.py`、送金+応援attestation
 - [x] **Stage 4: リーダーボード** — EAS GraphQLインデクサからの集計
 - [x] **Stage 5: フロントエンド** — ブラウザUI（静的HTML/JS）
-- [ ] **Stage 6: ウォレット直接署名** — サーバー代理署名の撤廃（ethers.js + MetaMask）
+- [x] **Stage 6: ウォレット直接署名** — サーバー代理署名の撤廃（ethers.js + MetaMask）
 - [ ] **Stage 7: マルチ通貨対応** — USDC投げ銭
 - [ ] **Stage 8: 拡散機能** — 急上昇ランキング・ワンタップシェア
 - [ ] **Stage 9: ENS対応** — 応援者・紹介者のアドレスをENS名表示
@@ -31,4 +31,5 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 | Stage 2 | 完了 | app.py（/attestエンドポイント）作成・動作確認済み（tx: 0x89d4f031b3cdd3abc08dd74cd2e3da6010ff7e68ade40cfa27f162b695b501fb）。push済み |
 | Stage 3 | 完了 | tip.py・/tipエンドポイント作成、ETH投げ銭を動作確認済み（送金tx: 0xa319b6a77c24fbb07ccadc74720331ed1917b24dcd4fbc89bf50dd3d0d025103）。push済み |
 | Stage 4 | 完了 | leaderboard.py・/leaderboardエンドポイント作成、集計動作確認済み。push済み |
-| Stage 5 | 完了 | static/index.html（サーバー経由の初期版UI）作成、動作確認済み。コミット待ち |
+| Stage 5 | 完了 | static/index.html（サーバー経由の初期版UI）作成、動作確認済み。push済み |
+| Stage 6 | 完了 | ethers.js + MetaMaskでフロントがウォレット直接署名するよう変更。JS構文・API import確認済み。コミット待ち |
