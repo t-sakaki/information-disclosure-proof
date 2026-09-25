@@ -19,11 +19,16 @@ POST /tip
         comment=<応援メッセージ>
         referrer_address=<紹介者のウォレットアドレス（任意、投げ銭リレー用）>
     -> { "transfer_tx_hash": "0x...", "attestation_tx_hash": "0x...", "tip_attestation_uid": "0x..." }
+
+GET /leaderboard
+    投げ銭額の多い応援者・紹介者ランキングをオンチェーンデータから集計して返す。
+    -> { "top_tippers": [...], "top_referrers": [...] }
 """
 from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import BaseModel
 
 from attest import ZERO_ADDRESS, submit_attestation
+from leaderboard import build_leaderboard
 from tip import send_tip
 
 app = FastAPI(title="information-disclosure-proof")
@@ -57,6 +62,11 @@ async def tip(body: TipRequest):
         body.comment,
         body.referrer_address,
     )
+
+
+@app.get("/leaderboard")
+async def leaderboard():
+    return build_leaderboard()
 
 
 @app.get("/health")
