@@ -150,6 +150,15 @@
     <div id="leaderboard"></div>
   </section>
 
+  <section class="card">
+    <div class="card-head">
+      <div class="icon">🔥</div>
+      <div><h2>急上昇中の開示請求</h2><p>直近24時間で応援が集まっている請求</p></div>
+    </div>
+    <button class="ghost" id="refresh-trending">↻ 最新の状態を取得</button>
+    <div id="trending"></div>
+  </section>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
@@ -297,14 +306,38 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
       data: { recipient, expirationTime: 0, revocable: true, refUID: refUid, data: encodedData, value: 0 },
     });
     const attestReceipt = await attestTx.wait();
-    setResult(out, `✅ 投げ銭完了（あなたのウォレットで署名済み）<br>送金tx: ${txLink(transferReceipt.hash)}<br>記録tx: ${txLink(attestReceipt.hash)}`);
+    const myAddress = await signer.getAddress();
+    setResult(
+      out,
+      `✅ 投げ銭完了（あなたのウォレットで署名済み）<br>送金tx: ${txLink(transferReceipt.hash)}<br>記録tx: ${txLink(attestReceipt.hash)}` +
+        shareButtonHtml(recipient, refUid, myAddress, currencyKey, document.getElementById("amount").value)
+    );
     loadLeaderboard();
+    loadTrending();
   } catch (err) {
     setResult(out, "❌ エラー: " + err.message, true);
   } finally {
     btn.disabled = false;
   }
 });
+
+function shareButtonHtml(recipient, refUid, referrerAddress, currency, amount) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("recipient", recipient);
+  url.searchParams.set("ref_uid", refUid);
+  url.searchParams.set("referrer", referrerAddress);
+  const text = `情報公開請求を ${amount} ${currency} で応援しました。あなたも投げ銭で応援しませんか？ #DisclosureProof #ETHGlobalTokyo`;
+  const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url.toString())}`;
+  return `<br><a class="tx-link" href="${intent}" target="_blank">🔥 この応援をSNSでシェアして紹介リンクを広める ↗</a>`;
+}
+
+(function prefillFromShareLink() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("recipient")) document.getElementById("recipient_address").value = params.get("recipient");
+  if (params.has("ref_uid")) document.getElementById("ref_attestation_uid").value = params.get("ref_uid");
+  if (params.has("referrer")) document.getElementById("referrer_address").value = params.get("referrer");
+})();
 
 async function loadLeaderboard() {
   const el = document.getElementById("leaderboard");
@@ -330,6 +363,29 @@ async function loadLeaderboard() {
 
 document.getElementById("refresh-leaderboard").addEventListener("click", loadLeaderboard);
 loadLeaderboard();
+
+async function loadTrending() {
+  const el = document.getElementById("trending");
+  el.innerHTML = `<p class="empty">読み込み中...</p>`;
+  try {
+    const res = await fetch(`${API}/trending`);
+    const data = await res.json();
+    if (!data.length) {
+      el.innerHTML = `<p class="empty">まだ急上昇中の請求はありません。</p>`;
+      return;
+    }
+    const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ");
+    el.innerHTML = `<table>
+      <tr><th>#</th><th>請求先</th><th>要約</th><th>応援</th></tr>
+      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.target_authority}</td><td>${r.summary || r.request_type}</td><td>${r.tip_count}件 (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
+    </table>`;
+  } catch (err) {
+    el.innerHTML = `<p class="empty">取得失敗: ${err.message}</p>`;
+  }
+}
+
+document.getElementById("refresh-trending").addEventListener("click", loadTrending);
+loadTrending();
 </script>
 </body>
 </html>

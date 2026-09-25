@@ -24,6 +24,9 @@ POST /tip
 GET /leaderboard
     投げ銭額の多い応援者・紹介者ランキングをオンチェーンデータから集計して返す。
     -> { "top_tippers": [...], "top_referrers": [...] }
+
+GET /trending
+    直近(デフォルト24時間)で最も応援が集まっている開示請求を「急上昇」として返す。
 """
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse
@@ -33,6 +36,7 @@ from pydantic import BaseModel
 from attest import ZERO_ADDRESS, submit_attestation
 from leaderboard import build_leaderboard
 from tip import send_tip
+from trending import trending_requests
 
 app = FastAPI(title="information-disclosure-proof")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -78,6 +82,11 @@ async def tip(body: TipRequest):
 @app.get("/leaderboard")
 async def leaderboard():
     return build_leaderboard()
+
+
+@app.get("/trending")
+async def trending(window_hours: int = 24, limit: int = 10):
+    return trending_requests(window_hours, limit)
 
 
 @app.get("/health")
