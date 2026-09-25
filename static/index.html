@@ -64,7 +64,7 @@
   .field { display: flex; flex-direction: column; gap: 0.35rem; }
   label { font-size: 0.78rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
   label .opt { font-weight: 400; text-transform: none; opacity: 0.7; }
-  input, textarea {
+  input, textarea, select {
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
     padding: 0.65rem 0.8rem; font-size: 0.95rem; color: var(--text); font-family: inherit;
   }
@@ -132,7 +132,8 @@
     <form id="tip-form">
       <div class="field"><label>請求者のウォレットアドレス</label><input type="text" id="recipient_address" placeholder="0x..." required></div>
       <div class="field"><label>応援対象の attestation UID</label><input type="text" id="ref_attestation_uid" placeholder="0x..." required></div>
-      <div class="field"><label>投げ銭額（ETH）</label><input type="number" id="amount_eth" step="0.00001" placeholder="0.0001" required></div>
+      <div class="field"><label>通貨</label><select id="currency"><option value="ETH">ETH</option><option value="USDC">USDC</option></select></div>
+      <div class="field"><label>投げ銭額</label><input type="number" id="amount" step="0.000001" placeholder="0.0001" required></div>
       <div class="field"><label>応援メッセージ <span class="opt">(任意)</span></label><input type="text" id="comment"></div>
       <div class="field"><label>紹介者アドレス <span class="opt">(任意)</span></label><input type="text" id="referrer_address" placeholder="0x..."></div>
       <button type="submit">💸 投げ銭する</button>
@@ -164,14 +165,19 @@ const BASE_SEPOLIA_PARAMS = {
 };
 const EAS_CONTRACT_ADDRESS = "0x4200000000000000000000000000000000000021";
 const ATTEST_SCHEMA_UID = "0x92cf840e48d7893e83e58e67e6209f0a9ad5b720bafdffc2fd740a38585d549a";
-const TIP_SCHEMA_UID = "0xf6fb59796ff4ef5c06765eb9ae4c00e11c784a377ba8e9116c3e97b0e04eb4ef";
+const TIP_SCHEMA_UID = "0xb047ba9c9239b1578838500266a3199191c45b28b001d2b3ab3e1e2cb7815b58";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ZERO_BYTES32 = "0x" + "0".repeat(64);
+const TOKENS = {
+  ETH: { address: ZERO_ADDRESS, decimals: 18 },
+  USDC: { address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", decimals: 6 },
+};
 
 const EAS_ABI = [
   "function attest((bytes32 schema,(address recipient,uint64 expirationTime,bool revocable,bytes32 refUID,bytes data,uint256 value) data) request) payable returns (bytes32)",
   "event Attested(address indexed recipient, address indexed attester, bytes32 uid, bytes32 indexed schemaUID)",
 ];
+const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
 
 let provider, signer, eas;
 
@@ -268,15 +274,24 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
     requireWallet();
     const recipient = document.getElementById("recipient_address").value;
     const refUid = document.getElementById("ref_attestation_uid").value;
-    const amountWei = ethers.parseEther(document.getElementById("amount_eth").value || "0");
+    const currencyKey = document.getElementById("currency").value;
+    const currency = TOKENS[currencyKey];
+    const amount = ethers.parseUnits(document.getElementById("amount").value || "0", currency.decimals);
     const comment = document.getElementById("comment").value;
     const referrer = document.getElementById("referrer_address").value.trim() || ZERO_ADDRESS;
-    setResult(out, "⏳ 送金を署名してください...(1/2)");
-    const transferTx = await signer.sendTransaction({ to: recipient, value: amountWei });
-    const transferReceipt = await transferTx.wait();
+    setResult(out, `⏳ ${currencyKey}の送金を署名してください...(1/2)`);
+    let transferReceipt;
+    if (currency.address === ZERO_ADDRESS) {
+      const transferTx = await signer.sendTransaction({ to: recipient, value: amount });
+      transferReceipt = await transferTx.wait();
+    } else {
+      const token = new ethers.Contract(currency.address, ERC20_ABI, signer);
+      const transferTx = await token.transfer(recipient, amount);
+      transferReceipt = await transferTx.wait();
+    }
     setResult(out, "⏳ 応援記録を署名してください...(2/2)");
     const coder = ethers.AbiCoder.defaultAbiCoder();
-    const encodedData = coder.encode(["address", "uint256", "string"], [referrer, amountWei, comment]);
+    const encodedData = coder.encode(["address", "address", "uint256", "string"], [currency.address, referrer, amount, comment]);
     const attestTx = await eas.attest({
       schema: TIP_SCHEMA_UID,
       data: { recipient, expirationTime: 0, revocable: true, refUID: refUid, data: encodedData, value: 0 },
@@ -297,15 +312,16 @@ async function loadLeaderboard() {
   try {
     const res = await fetch(`${API}/leaderboard`);
     const data = await res.json();
-    const rows = (list, totalKey, countKey, countLabel) => {
+    const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ") || "—";
+    const rows = (list, countKey, countLabel) => {
       if (!list.length) return `<p class="empty">まだありません。</p>`;
-      return `<table><tr><th>#</th><th>アドレス</th><th>合計</th><th>${countLabel}</th></tr>
-        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${short(r.address)}</td><td>${r[totalKey]} ETH</td><td>${r[countKey]}</td></tr>`).join("")}
+      return `<table><tr><th>#</th><th>アドレス</th><th>内訳</th><th>${countLabel}</th></tr>
+        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
       </table>`;
     };
     el.innerHTML = `
-      <div class="subtable-title">応援者ランキング</div>${rows(data.top_tippers, "total_eth", "tip_count", "回数")}
-      <div class="subtable-title">紹介者ランキング</div>${rows(data.top_referrers, "referred_total_eth", "referral_count", "紹介数")}
+      <div class="subtable-title">応援者ランキング</div>${rows(data.top_tippers, "tip_count", "回数")}
+      <div class="subtable-title">紹介者ランキング</div>${rows(data.top_referrers, "referral_count", "紹介数")}
     `;
   } catch (err) {
     el.innerHTML = `<p class="empty">取得失敗: ${err.message}</p>`;

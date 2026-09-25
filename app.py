@@ -15,9 +15,10 @@ POST /tip
     json body:
         recipient_address=<請求者のウォレットアドレス>
         ref_attestation_uid=<応援対象のattestation UID>
-        amount_wei=<送金額(wei)>
+        amount=<送金額（トークンの最小単位。ETHならwei, USDCなら6桁単位）>
         comment=<応援メッセージ>
         referrer_address=<紹介者のウォレットアドレス（任意、投げ銭リレー用）>
+        token_address=<トークンコントラクトアドレス（任意、省略でETH）>
     -> { "transfer_tx_hash": "0x...", "attestation_tx_hash": "0x...", "tip_attestation_uid": "0x..." }
 
 GET /leaderboard
@@ -45,9 +46,10 @@ async def index():
 class TipRequest(BaseModel):
     recipient_address: str
     ref_attestation_uid: str
-    amount_wei: int
+    amount: int
     comment: str = ""
     referrer_address: str = ZERO_ADDRESS
+    token_address: str = ZERO_ADDRESS
 
 
 @app.post("/attest")
@@ -66,9 +68,10 @@ async def tip(body: TipRequest):
     return send_tip(
         body.recipient_address,
         body.ref_attestation_uid,
-        body.amount_wei,
+        body.amount,
         body.comment,
         body.referrer_address,
+        body.token_address,
     )
 
 

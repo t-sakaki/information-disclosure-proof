@@ -1,16 +1,21 @@
 """
-"投げ銭" (tip) a Freedom-of-Information disclosure request: send ETH to the
-requester's wallet on Base Sepolia and record a linked EAS attestation
-(referencing the original request's attestation via refUID) so the amount,
-sender, and message of support are verifiable on-chain.
+"投げ銭" (tip) a Freedom-of-Information disclosure request: send ETH or an
+ERC-20 token (e.g. USDC) to the requester's wallet on Base Sepolia and
+record a linked EAS attestation (referencing the original request's
+attestation via refUID) so the token, amount, sender, and message of
+support are verifiable on-chain.
 
 Schema:
-    address referrer  - wallet of whoever referred this tipper (zero address if none)
-    uint256 amountWei - amount of the tip, in wei
-    string  comment   - optional message of support/praise
+    address token     - token contract address, or the zero address for
+                         native ETH
+    address referrer  - wallet of whoever referred this tipper (zero
+                         address if none)
+    uint256 amount     - amount of the tip, in the token's smallest unit
+                          (wei for ETH, 6-decimal units for USDC, etc.)
+    string  comment    - optional message of support/praise
 
 Register this schema with:
-    python register_schema.py "address referrer,uint256 amountWei,string comment"
+    python register_schema.py "address token,address referrer,uint256 amount,string comment"
 and set the result as TIP_SCHEMA_UID in .env.
 """
 import os
@@ -28,37 +33,63 @@ PRIVATE_KEY = os.environ["CHAIN_PRIVATE_KEY"]
 EAS_CONTRACT_ADDRESS = Web3.to_checksum_address(os.environ["EAS_CONTRACT_ADDRESS"])
 TIP_SCHEMA_UID = os.environ["TIP_SCHEMA_UID"]
 
+ERC20_ABI = [
+    {
+        "inputs": [
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"},
+        ],
+        "name": "transfer",
+        "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    }
+]
+
 
 def send_tip(
     recipient_address: str,
     ref_attestation_uid: str,
-    amount_wei: int,
+    amount: int,
     comment: str,
     referrer_address: str = ZERO_ADDRESS,
+    token_address: str = ZERO_ADDRESS,
 ) -> dict:
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
     account = w3.eth.account.from_key(PRIVATE_KEY)
     recipient = Web3.to_checksum_address(recipient_address)
     referrer = Web3.to_checksum_address(referrer_address)
+    token = Web3.to_checksum_address(token_address)
+    is_native = token == ZERO_ADDRESS
 
-    # 1. Send the tip itself.
-    transfer_tx = {
-        "from": account.address,
-        "to": recipient,
-        "value": amount_wei,
-        "nonce": w3.eth.get_transaction_count(account.address, "pending"),
-        "chainId": w3.eth.chain_id,
-        "gasPrice": w3.eth.gas_price,
-    }
-    transfer_tx["gas"] = w3.eth.estimate_gas(transfer_tx)
+    if is_native:
+        transfer_tx = {
+            "from": account.address,
+            "to": recipient,
+            "value": amount,
+            "nonce": w3.eth.get_transaction_count(account.address, "pending"),
+            "chainId": w3.eth.chain_id,
+            "gasPrice": w3.eth.gas_price,
+        }
+        transfer_tx["gas"] = w3.eth.estimate_gas(transfer_tx)
+    else:
+        erc20 = w3.eth.contract(address=token, abi=ERC20_ABI)
+        transfer_tx = erc20.functions.transfer(recipient, amount).build_transaction(
+            {
+                "from": account.address,
+                "nonce": w3.eth.get_transaction_count(account.address, "pending"),
+                "chainId": w3.eth.chain_id,
+                "gasPrice": w3.eth.gas_price,
+            }
+        )
     signed_transfer = account.sign_transaction(transfer_tx)
     transfer_hash = w3.eth.send_raw_transaction(signed_transfer.raw_transaction)
     w3.eth.wait_for_transaction_receipt(transfer_hash)
 
-    # 2. Record the tip as an attestation linked to the original request.
     eas = w3.eth.contract(address=EAS_CONTRACT_ADDRESS, abi=EAS_ABI)
     encoded_data = encode(
-        ["address", "uint256", "string"], [referrer, amount_wei, comment]
+        ["address", "address", "uint256", "string"],
+        [token, referrer, amount, comment],
     )
 
     request = (
@@ -97,7 +128,7 @@ if __name__ == "__main__":
         send_tip(
             recipient_address=ZERO_ADDRESS,
             ref_attestation_uid="0x" + "0" * 64,
-            amount_wei=0,
+            amount=0,
             comment="test tip",
         )
     )

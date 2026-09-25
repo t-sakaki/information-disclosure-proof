@@ -1,7 +1,10 @@
 """
 Aggregate on-chain tip attestations into leaderboards:
-    - top tippers (by total ETH tipped)
-    - top referrers (by total ETH tipped through their referral)
+    - top tippers (by number of tips, broken down by currency)
+    - top referrers (by number of referred tips, broken down by currency)
+
+Tips can be in native ETH or an ERC-20 token (e.g. USDC), so totals are
+kept separate per currency rather than summed together.
 
 Data is read directly from the EAS GraphQL indexer for Base Sepolia, so no
 separate database is needed -- the chain itself is the source of truth.
@@ -33,11 +36,27 @@ query TipAttestations($schemaId: String!) {
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
+KNOWN_TOKENS = {ZERO_ADDRESS: ("ETH", 18)}
+_usdc = os.environ.get("USDC_CONTRACT_ADDRESS")
+if _usdc:
+    KNOWN_TOKENS[Web3.to_checksum_address(_usdc)] = ("USDC", 6)
 
-def _decode_tip_data(data_hex: str) -> tuple[str, int, str]:
+
+def short_addr(addr: str) -> str:
+    return addr[:6] + "..." + addr[-4:]
+
+
+def _token_info(token_address: str) -> tuple[str, int]:
+    checksummed = Web3.to_checksum_address(token_address)
+    return KNOWN_TOKENS.get(checksummed, (short_addr(checksummed), 18))
+
+
+def _decode_tip_data(data_hex: str) -> tuple[str, str, int, str]:
     raw = bytes.fromhex(data_hex[2:] if data_hex.startswith("0x") else data_hex)
-    referrer, amount_wei, comment = decode(["address", "uint256", "string"], raw)
-    return referrer, amount_wei, comment
+    token, referrer, amount, comment = decode(
+        ["address", "address", "uint256", "string"], raw
+    )
+    return token, referrer, amount, comment
 
 
 def fetch_tip_attestations() -> list[dict]:
@@ -50,46 +69,55 @@ def fetch_tip_attestations() -> list[dict]:
     return response.json()["data"]["attestations"]
 
 
+def _empty_breakdown():
+    return defaultdict(lambda: {"total_amount": 0, "count": 0})
+
+
 def build_leaderboard() -> dict:
     attestations = fetch_tip_attestations()
 
-    tipper_totals: dict[str, int] = defaultdict(int)
-    tipper_counts: dict[str, int] = defaultdict(int)
-    referrer_totals: dict[str, int] = defaultdict(int)
-    referrer_counts: dict[str, int] = defaultdict(int)
+    tipper_breakdown: dict[str, dict] = defaultdict(_empty_breakdown)
+    referrer_breakdown: dict[str, dict] = defaultdict(_empty_breakdown)
+    tipper_tip_count: dict[str, int] = defaultdict(int)
+    referrer_tip_count: dict[str, int] = defaultdict(int)
 
     for a in attestations:
-        referrer, amount_wei, _comment = _decode_tip_data(a["data"])
+        token, referrer, amount, _comment = _decode_tip_data(a["data"])
+        symbol, decimals = _token_info(token)
+
         tipper = Web3.to_checksum_address(a["attester"])
-        tipper_totals[tipper] += amount_wei
-        tipper_counts[tipper] += 1
+        tipper_breakdown[tipper][symbol]["total_amount"] += amount
+        tipper_breakdown[tipper][symbol]["count"] += 1
+        tipper_breakdown[tipper][symbol]["decimals"] = decimals
+        tipper_tip_count[tipper] += 1
+
         if referrer.lower() != ZERO_ADDRESS:
             referrer = Web3.to_checksum_address(referrer)
-            referrer_totals[referrer] += amount_wei
-            referrer_counts[referrer] += 1
+            referrer_breakdown[referrer][symbol]["total_amount"] += amount
+            referrer_breakdown[referrer][symbol]["count"] += 1
+            referrer_breakdown[referrer][symbol]["decimals"] = decimals
+            referrer_tip_count[referrer] += 1
 
-    top_tippers = sorted(tipper_totals.items(), key=lambda kv: kv[1], reverse=True)
-    top_referrers = sorted(referrer_totals.items(), key=lambda kv: kv[1], reverse=True)
+    def _to_list(breakdown_by_addr, count_by_addr, count_label):
+        ranked = sorted(count_by_addr.items(), key=lambda kv: kv[1], reverse=True)
+        result = []
+        for addr, _n in ranked:
+            breakdown = [
+                {
+                    "currency": symbol,
+                    "amount": stats["total_amount"] / (10 ** stats["decimals"]),
+                    "count": stats["count"],
+                }
+                for symbol, stats in breakdown_by_addr[addr].items()
+            ]
+            result.append(
+                {"address": addr, count_label: count_by_addr[addr], "breakdown": breakdown}
+            )
+        return result
 
     return {
-        "top_tippers": [
-            {
-                "address": addr,
-                "total_wei": total,
-                "total_eth": float(Web3.from_wei(total, "ether")),
-                "tip_count": tipper_counts[addr],
-            }
-            for addr, total in top_tippers
-        ],
-        "top_referrers": [
-            {
-                "address": addr,
-                "referred_total_wei": total,
-                "referred_total_eth": float(Web3.from_wei(total, "ether")),
-                "referral_count": referrer_counts[addr],
-            }
-            for addr, total in top_referrers
-        ],
+        "top_tippers": _to_list(tipper_breakdown, tipper_tip_count, "tip_count"),
+        "top_referrers": _to_list(referrer_breakdown, referrer_tip_count, "referral_count"),
     }
 
 
