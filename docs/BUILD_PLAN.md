@@ -15,6 +15,9 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 - [x] **Stage 8: 拡散機能** — 急上昇ランキング・ワンタップシェア
 - [x] **Stage 9: ENS対応** — 応援者・紹介者のアドレスをENS名表示
 - [x] **Stage 10: 仕上げ** — README整備、デモ動画準備
+- [x] **Stage 11: ENSv2団体サブネーム登録** — 団体向けオプション機能として、
+  ENSv2のL2レジストリ方式に倣った自前コントラクト（`OrgSubnameRegistryV2`）を
+  Base Sepoliaにデプロイし、リーダーボード表示・フロントエンドの登録UIに統合
 
 ## 進め方のルール
 
@@ -37,3 +40,4 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 | Stage 8 | 完了 | trending.py・/trendingエンドポイント・フロントの急上昇セクション+SNSシェアボタン追加。動作確認済み。push済み |
 | Stage 9 | 完了 | ens_resolve.py作成、leaderboard.py・フロントをENS名表示に対応。動作確認済み。push済み |
 | Stage 10 | 完了 | README全面刷新、デモ資料（narration_script.md, demo_walkthrough.md）配置。全エンドポイント最終動作確認済み。コミット待ち |
+| Stage 11 | 完了 | `contracts/OrgSubnameRegistryV2.sol`作成・Base Sepoliaにデプロイ済み（tx: 0xb70fd3bdffb35db003bf77f5e9d8ce09bbc268b87ecd85c58b9889a4d0c5b4c6、contract: 0x67e48e5e0DA4a160D0Cb5cE12ac311087ed68F1D）。`registerSubname`実行・`ensv2_org.py`での逆引き・`/leaderboard`への`org_subname`反映まで実際に動作確認済み |

@@ -8,6 +8,12 @@ kept separate per currency rather than summed together.
 
 Data is read directly from the EAS GraphQL indexer for Base Sepolia, so no
 separate database is needed -- the chain itself is the source of truth.
+
+Each entry also carries an optional "org_subname": an ENSv2-style name that
+an organization (NPO, citizen ombudsman group, etc.) may have opted into via
+the self-hosted OrgSubnameRegistryV2 (see ensv2_org.py). Individuals are
+never required to register one, and entries without it fall back to
+"ens_name" (legacy mainnet ENS reverse resolution) or the raw address.
 """
 import os
 from collections import defaultdict
@@ -18,6 +24,7 @@ from eth_abi import decode
 from web3 import Web3
 
 from ens_resolve import resolve_ens_name
+from ensv2_org import resolve_org_name
 
 load_dotenv()
 
@@ -116,6 +123,7 @@ def build_leaderboard() -> dict:
                 {
                     "address": addr,
                     "ens_name": resolve_ens_name(addr),
+                    "org_subname": resolve_org_name(addr),
                     count_label: count_by_addr[addr],
                     "breakdown": breakdown,
                 }
