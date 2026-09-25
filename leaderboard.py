@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 from eth_abi import decode
 from web3 import Web3
 
+from ens_resolve import resolve_ens_name
+
 load_dotenv()
 
 TIP_SCHEMA_UID = os.environ["TIP_SCHEMA_UID"]
@@ -111,7 +113,12 @@ def build_leaderboard() -> dict:
                 for symbol, stats in breakdown_by_addr[addr].items()
             ]
             result.append(
-                {"address": addr, count_label: count_by_addr[addr], "breakdown": breakdown}
+                {
+                    "address": addr,
+                    "ens_name": resolve_ens_name(addr),
+                    count_label: count_by_addr[addr],
+                    "breakdown": breakdown,
+                }
             )
         return result
 

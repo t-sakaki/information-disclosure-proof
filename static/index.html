@@ -349,7 +349,7 @@ async function loadLeaderboard() {
     const rows = (list, countKey, countLabel) => {
       if (!list.length) return `<p class="empty">まだありません。</p>`;
       return `<table><tr><th>#</th><th>アドレス</th><th>内訳</th><th>${countLabel}</th></tr>
-        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
+        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.ens_name || short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
       </table>`;
     };
     el.innerHTML = `

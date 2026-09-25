@@ -13,7 +13,7 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 - [x] **Stage 6: ウォレット直接署名** — サーバー代理署名の撤廃（ethers.js + MetaMask）
 - [x] **Stage 7: マルチ通貨対応** — USDC投げ銭
 - [x] **Stage 8: 拡散機能** — 急上昇ランキング・ワンタップシェア
-- [ ] **Stage 9: ENS対応** — 応援者・紹介者のアドレスをENS名表示
+- [x] **Stage 9: ENS対応** — 応援者・紹介者のアドレスをENS名表示
 - [ ] **Stage 10: 仕上げ** — README整備、デモ動画準備
 
 ## 進め方のルール
@@ -34,4 +34,5 @@ ETHGlobal Tokyo 2026提出用。本当のハッカソン開始時刻（2026-09-2
 | Stage 5 | 完了 | static/index.html（サーバー経由の初期版UI）作成、動作確認済み。push済み |
 | Stage 6 | 完了 | ethers.js + MetaMaskでフロントがウォレット直接署名するよう変更。JS構文・API import確認済み。push済み |
 | Stage 7 | 完了 | tip.py/leaderboard.py/フロントをUSDC対応に拡張。実USDC投げ銭・通貨別集計を動作確認済み（tx: 0x2d58889a020883449977350449ab71ca1f9154e3d36b727e81ff2cf41c557afe）。push済み |
-| Stage 8 | 完了 | trending.py・/trendingエンドポイント・フロントの急上昇セクション+SNSシェアボタン追加。動作確認済み。コミット待ち |
+| Stage 8 | 完了 | trending.py・/trendingエンドポイント・フロントの急上昇セクション+SNSシェアボタン追加。動作確認済み。push済み |
+| Stage 9 | 完了 | ens_resolve.py作成、leaderboard.py・フロントをENS名表示に対応。動作確認済み。コミット待ち |
