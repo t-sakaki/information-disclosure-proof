@@ -143,6 +143,24 @@
 
   <section class="card">
     <div class="card-head">
+      <div class="icon">🏛️</div>
+      <div><h2>団体サブネーム登録（ENSv2、任意）</h2><p>NPO・市民オンブズマン団体など、対外的に名乗りたい団体向けの任意機能。個人の請求者は登録不要です。</p></div>
+    </div>
+    <p class="lede" style="margin:0 0 0.8rem;text-align:left;">
+      登録すると「ラベル.${ENSV2_PARENT_NAME}」の形でリーダーボードに表示されます。
+      これはENS Labs公式のENSv2 Namechainではなく、本プロジェクトが自前でBase Sepolia上に
+      デプロイした、ENSv2のL2レジストリ方式（ラベル→オーナーの対応をコントラクトで管理）に
+      倣った独自コントラクトです。
+    </p>
+    <form id="org-subname-form">
+      <div class="field"><label>希望するラベル</label><input type="text" id="org_label" placeholder="例: sample-npo" required></div>
+      <button type="submit">🏛️ このアドレスに登録する</button>
+    </form>
+    <div class="result" id="org-subname-result"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
       <div class="icon">🏆</div>
       <div><h2>応援リーダーボード</h2><p>オンチェーンデータからリアルタイム集計</p></div>
     </div>
@@ -188,7 +206,18 @@ const EAS_ABI = [
 ];
 const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
 
-let provider, signer, eas;
+// ENSv2互換の自己ホスト団体サブネームレジストリ（OrgSubnameRegistryV2, Base Sepolia）。
+// 公式ENS Labs ENSv2 Namechainではなく、本プロジェクト独自のコントラクト。
+// 個人の請求者は使う必要はない（団体向けオプション機能）。
+const ENSV2_REGISTRY_ADDRESS = "0x67e48e5e0DA4a160D0Cb5cE12ac311087ed68F1D";
+const ENSV2_PARENT_NAME = "npo.disclosureproof.eth";
+const ENSV2_REGISTRY_ABI = [
+  "function registerSubname(string label)",
+  "function reverseLabel(address owner) view returns (string)",
+  "function fullName(address owner) view returns (string)",
+];
+
+let provider, signer, eas, orgRegistry;
 
 async function connectWallet() {
   const out = document.getElementById("wallet-result");
@@ -214,6 +243,7 @@ async function connectWallet() {
     }
     signer = await provider.getSigner();
     eas = new ethers.Contract(EAS_CONTRACT_ADDRESS, EAS_ABI, signer);
+    orgRegistry = new ethers.Contract(ENSV2_REGISTRY_ADDRESS, ENSV2_REGISTRY_ABI, signer);
     const address = await signer.getAddress();
     setResult(out, `✅ 接続済み: <b>${address}</b>（Base Sepolia）`);
     document.getElementById("connect-wallet").textContent = "🦊 " + short(address) + " 接続中";
@@ -321,6 +351,26 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
   }
 });
 
+document.getElementById("org-subname-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector("button");
+  const out = document.getElementById("org-subname-result");
+  btn.disabled = true;
+  try {
+    requireWallet();
+    const label = document.getElementById("org_label").value.trim();
+    setResult(out, "⏳ ウォレットで署名してください...");
+    const tx = await orgRegistry.registerSubname(label);
+    const receipt = await tx.wait();
+    setResult(out, `✅ 登録完了: <b>${label}.${ENSV2_PARENT_NAME}</b><br>tx: ${txLink(receipt.hash)}`);
+    loadLeaderboard();
+  } catch (err) {
+    setResult(out, "❌ エラー: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 function shareButtonHtml(recipient, refUid, referrerAddress, currency, amount) {
   const url = new URL(window.location.href);
   url.search = "";
@@ -349,7 +399,7 @@ async function loadLeaderboard() {
     const rows = (list, countKey, countLabel) => {
       if (!list.length) return `<p class="empty">まだありません。</p>`;
       return `<table><tr><th>#</th><th>アドレス</th><th>内訳</th><th>${countLabel}</th></tr>
-        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.ens_name || short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
+        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.org_subname || r.ens_name || short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
       </table>`;
     };
     el.innerHTML = `

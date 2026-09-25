@@ -6,3 +6,4 @@ eth-abi==5.1.0
 python-dotenv==1.0.1
 python-multipart==0.0.12
 requests==2.32.3
+py-solc-x==2.0.5
