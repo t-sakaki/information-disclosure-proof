@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -89,6 +89,9 @@
   .rank { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface-2); font-size: 0.75rem; font-weight: 700; color: var(--text-dim); }
   .subtable-title { font-size: 0.85rem; font-weight: 600; margin: 1.2rem 0 0.2rem; color: var(--text-dim); }
   .empty { color: var(--text-dim); font-size: 0.85rem; padding: 1rem 0; text-align: center; }
+  .ja { display: block; font-size: 0.82em; font-weight: 400; opacity: 0.7; margin-top: 0.15rem; }
+  label .ja { text-transform: none; display: inline; margin-left: 0.4rem; }
+  button .ja { font-size: 0.8em; opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -97,29 +100,29 @@
   <header class="hero">
     <div class="badge"><span class="dot"></span> Base Sepolia Testnet · EAS</div>
     <h1>Disclosure Proof</h1>
-    <p class="lede">行政文書開示請求をオンチェーンに刻印し、市民の応援（投げ銭）で支える仕組みです。</p>
+    <p class="lede">Notarize Freedom-of-Information disclosure requests on-chain, and let citizens support them with tips.<span class="ja">行政文書開示請求をオンチェーンに刻印し、市民の応援（投げ銭）で支える仕組みです。</span></p>
   </header>
 
   <section class="card">
     <div class="card-head">
       <div class="icon">🔑</div>
-      <div><h2>ウォレットを接続</h2><p>すべての記録はあなた自身のウォレットで署名されます（サーバー代理署名なし）</p></div>
+      <div><h2>Connect Wallet<span class="ja">ウォレットを接続</span></h2><p>Every record is signed by your own wallet (no server-side signing).<span class="ja">すべての記録はあなた自身のウォレットで署名されます（サーバー代理署名なし）</span></p></div>
     </div>
-    <button id="connect-wallet">🦊 ウォレットを接続</button>
+    <button id="connect-wallet">🦊 Connect Wallet<span class="ja">ウォレットを接続</span></button>
     <div class="result" id="wallet-result"></div>
   </section>
 
   <section class="card">
     <div class="card-head">
       <div class="icon">📝</div>
-      <div><h2>開示請求を刻印する</h2><p>EASで改ざん不可能な証明としてBase Sepoliaに記録します</p></div>
+      <div><h2>Notarize a Disclosure Request<span class="ja">開示請求を刻印する</span></h2><p>Recorded on Base Sepolia as a tamper-proof EAS attestation.<span class="ja">EASで改ざん不可能な証明としてBase Sepoliaに記録します</span></p></div>
     </div>
     <form id="attest-form">
-      <div class="field"><label>対象文書</label><input type="file" id="file" required></div>
-      <div class="field"><label>請求先（実施機関）</label><input type="text" id="target_authority" placeholder="例: 〇〇市長 / 〇〇県知事" required></div>
-      <div class="field"><label>請求の種類</label><input type="text" id="request_type" value="行政文書開示請求" required></div>
-      <div class="field"><label>請求内容の要約</label><textarea id="summary" rows="2"></textarea></div>
-      <button type="submit">🔏 刻印する</button>
+      <div class="field"><label>Document<span class="ja">対象文書</span></label><input type="file" id="file" required></div>
+      <div class="field"><label>Target authority<span class="ja">請求先（実施機関）</span></label><input type="text" id="target_authority" placeholder="e.g. Mayor of XX City / 例: 〇〇市長" required></div>
+      <div class="field"><label>Request type<span class="ja">請求の種類</span></label><input type="text" id="request_type" value="行政文書開示請求" required></div>
+      <div class="field"><label>Summary<span class="ja">請求内容の要約</span></label><textarea id="summary" rows="2"></textarea></div>
+      <button type="submit">🔏 Notarize<span class="ja">刻印する</span></button>
     </form>
     <div class="result" id="attest-result"></div>
   </section>
@@ -127,16 +130,16 @@
   <section class="card">
     <div class="card-head">
       <div class="icon">💸</div>
-      <div><h2>投げ銭で応援する</h2><p>請求者にETHを送り、応援メッセージをオンチェーンに残します</p></div>
+      <div><h2>Support with a Tip<span class="ja">投げ銭で応援する</span></h2><p>Send ETH or USDC to the requester and leave an on-chain message of support.<span class="ja">請求者にETH/USDCを送り、応援メッセージをオンチェーンに残します</span></p></div>
     </div>
     <form id="tip-form">
-      <div class="field"><label>請求者のウォレットアドレス</label><input type="text" id="recipient_address" placeholder="0x..." required></div>
-      <div class="field"><label>応援対象の attestation UID</label><input type="text" id="ref_attestation_uid" placeholder="0x..." required></div>
-      <div class="field"><label>通貨</label><select id="currency"><option value="ETH">ETH</option><option value="USDC">USDC</option></select></div>
-      <div class="field"><label>投げ銭額</label><input type="number" id="amount" step="0.000001" placeholder="0.0001" required></div>
-      <div class="field"><label>応援メッセージ <span class="opt">(任意)</span></label><input type="text" id="comment"></div>
-      <div class="field"><label>紹介者アドレス <span class="opt">(任意)</span></label><input type="text" id="referrer_address" placeholder="0x..."></div>
-      <button type="submit">💸 投げ銭する</button>
+      <div class="field"><label>Requester's wallet address<span class="ja">請求者のウォレットアドレス</span></label><input type="text" id="recipient_address" placeholder="0x..." required></div>
+      <div class="field"><label>Attestation UID to support<span class="ja">応援対象の attestation UID</span></label><input type="text" id="ref_attestation_uid" placeholder="0x..." required></div>
+      <div class="field"><label>Currency<span class="ja">通貨</span></label><select id="currency"><option value="ETH">ETH</option><option value="USDC">USDC</option></select></div>
+      <div class="field"><label>Tip amount<span class="ja">投げ銭額</span></label><input type="number" id="amount" step="0.000001" placeholder="0.0001" required></div>
+      <div class="field"><label>Message <span class="opt">(optional)</span><span class="ja">応援メッセージ（任意）</span></label><input type="text" id="comment"></div>
+      <div class="field"><label>Referrer address <span class="opt">(optional)</span><span class="ja">紹介者アドレス（任意）</span></label><input type="text" id="referrer_address" placeholder="0x..."></div>
+      <button type="submit">💸 Send Tip<span class="ja">投げ銭する</span></button>
     </form>
     <div class="result" id="tip-result"></div>
   </section>
@@ -144,17 +147,21 @@
   <section class="card">
     <div class="card-head">
       <div class="icon">🏛️</div>
-      <div><h2>団体サブネーム登録（ENSv2、任意）</h2><p>NPO・市民オンブズマン団体など、対外的に名乗りたい団体向けの任意機能。個人の請求者は登録不要です。</p></div>
+      <div><h2>Organization Subname (ENSv2, optional)<span class="ja">団体サブネーム登録（ENSv2、任意）</span></h2><p>Optional feature for organizations (NPOs, citizen ombudsman groups) that want a public name. Individual requesters never need this.<span class="ja">NPO・市民オンブズマン団体など、対外的に名乗りたい団体向けの任意機能。個人の請求者は登録不要です。</span></p></div>
     </div>
     <p class="lede" style="margin:0 0 0.8rem;text-align:left;">
-      登録すると「ラベル.${ENSV2_PARENT_NAME}」の形でリーダーボードに表示されます。
+      Once registered, you'll appear on the leaderboard as "label.npo.disclosureproof.eth".
+      This is our own contract, deployed on Base Sepolia, that follows ENSv2's L2-registry
+      pattern (a contract mapping label &rarr; owner) &mdash; it is not a registration on ENS Labs'
+      official ENSv2 Namechain.
+      <span class="ja">登録すると「ラベル.npo.disclosureproof.eth」の形でリーダーボードに表示されます。
       これはENS Labs公式のENSv2 Namechainではなく、本プロジェクトが自前でBase Sepolia上に
       デプロイした、ENSv2のL2レジストリ方式（ラベル→オーナーの対応をコントラクトで管理）に
-      倣った独自コントラクトです。
+      倣った独自コントラクトです。</span>
     </p>
     <form id="org-subname-form">
-      <div class="field"><label>希望するラベル</label><input type="text" id="org_label" placeholder="例: sample-npo" required></div>
-      <button type="submit">🏛️ このアドレスに登録する</button>
+      <div class="field"><label>Desired label<span class="ja">希望するラベル</span></label><input type="text" id="org_label" placeholder="e.g. sample-npo" required></div>
+      <button type="submit">🏛️ Register for this address<span class="ja">このアドレスに登録する</span></button>
     </form>
     <div class="result" id="org-subname-result"></div>
   </section>
@@ -162,18 +169,18 @@
   <section class="card">
     <div class="card-head">
       <div class="icon">🏆</div>
-      <div><h2>応援リーダーボード</h2><p>オンチェーンデータからリアルタイム集計</p></div>
+      <div><h2>Support Leaderboard<span class="ja">応援リーダーボード</span></h2><p>Live tally computed directly from on-chain data.<span class="ja">オンチェーンデータからリアルタイム集計</span></p></div>
     </div>
-    <button class="ghost" id="refresh-leaderboard">↻ 最新の状態を取得</button>
+    <button class="ghost" id="refresh-leaderboard">↻ Refresh<span class="ja">最新の状態を取得</span></button>
     <div id="leaderboard"></div>
   </section>
 
   <section class="card">
     <div class="card-head">
       <div class="icon">🔥</div>
-      <div><h2>急上昇中の開示請求</h2><p>直近24時間で応援が集まっている請求</p></div>
+      <div><h2>Trending Requests<span class="ja">急上昇中の開示請求</span></h2><p>Requests that gathered the most support in the last 24 hours.<span class="ja">直近24時間で応援が集まっている請求</span></p></div>
     </div>
-    <button class="ghost" id="refresh-trending">↻ 最新の状態を取得</button>
+    <button class="ghost" id="refresh-trending">↻ Refresh<span class="ja">最新の状態を取得</span></button>
     <div id="trending"></div>
   </section>
 
@@ -222,7 +229,7 @@ let provider, signer, eas, orgRegistry;
 async function connectWallet() {
   const out = document.getElementById("wallet-result");
   if (!window.ethereum) {
-    setResult(out, "❌ MetaMask等のウォレット拡張機能が見つかりません。", true);
+    setResult(out, "❌ No wallet extension (e.g. MetaMask) found. / MetaMask等のウォレット拡張機能が見つかりません。", true);
     return;
   }
   try {
@@ -245,17 +252,17 @@ async function connectWallet() {
     eas = new ethers.Contract(EAS_CONTRACT_ADDRESS, EAS_ABI, signer);
     orgRegistry = new ethers.Contract(ENSV2_REGISTRY_ADDRESS, ENSV2_REGISTRY_ABI, signer);
     const address = await signer.getAddress();
-    setResult(out, `✅ 接続済み: <b>${address}</b>（Base Sepolia）`);
-    document.getElementById("connect-wallet").textContent = "🦊 " + short(address) + " 接続中";
+    setResult(out, `✅ Connected: <b>${address}</b> (Base Sepolia) / 接続済み`);
+    document.getElementById("connect-wallet").textContent = "🦊 " + short(address) + " connected / 接続中";
     document.getElementById("connect-wallet").disabled = true;
   } catch (err) {
-    setResult(out, "❌ 接続失敗: " + err.message, true);
+    setResult(out, "❌ Connection failed / 接続失敗: " + err.message, true);
   }
 }
 document.getElementById("connect-wallet").addEventListener("click", connectWallet);
 
 function requireWallet() {
-  if (!signer) throw new Error("先にウォレットを接続してください");
+  if (!signer) throw new Error("Please connect your wallet first / 先にウォレットを接続してください");
 }
 
 async function sha256Hex(file) {
@@ -279,7 +286,7 @@ document.getElementById("attest-form").addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     requireWallet();
-    setResult(out, "⏳ ウォレットで署名してください...");
+    setResult(out, "⏳ Please sign in your wallet... / ウォレットで署名してください...");
     const file = document.getElementById("file").files[0];
     const docHash = await sha256Hex(file);
     const targetAuthority = document.getElementById("target_authority").value;
@@ -291,14 +298,14 @@ document.getElementById("attest-form").addEventListener("submit", async (e) => {
       schema: ATTEST_SCHEMA_UID,
       data: { recipient: ZERO_ADDRESS, expirationTime: 0, revocable: true, refUID: ZERO_BYTES32, data: encodedData, value: 0 },
     });
-    setResult(out, "⏳ ブロック確定を待っています...");
+    setResult(out, "⏳ Waiting for block confirmation... / ブロック確定を待っています...");
     const receipt = await tx.wait();
     const parsed = receipt.logs.map((log) => { try { return eas.interface.parseLog(log); } catch { return null; } }).find((l) => l && l.name === "Attested");
     const uid = parsed.args.uid;
-    setResult(out, `✅ 刻印完了（あなたのウォレットで署名済み）<br>attestation UID: <b>${uid}</b><br>tx: ${txLink(receipt.hash)}`);
+    setResult(out, `✅ Notarized (signed by your own wallet) / 刻印完了（あなたのウォレットで署名済み）<br>attestation UID: <b>${uid}</b><br>tx: ${txLink(receipt.hash)}`);
     document.getElementById("ref_attestation_uid").value = uid;
   } catch (err) {
-    setResult(out, "❌ エラー: " + err.message, true);
+    setResult(out, "❌ Error / エラー: " + err.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -318,7 +325,7 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
     const amount = ethers.parseUnits(document.getElementById("amount").value || "0", currency.decimals);
     const comment = document.getElementById("comment").value;
     const referrer = document.getElementById("referrer_address").value.trim() || ZERO_ADDRESS;
-    setResult(out, `⏳ ${currencyKey}の送金を署名してください...(1/2)`);
+    setResult(out, `⏳ Please sign the ${currencyKey} transfer... (1/2) / ${currencyKey}の送金を署名してください...`);
     let transferReceipt;
     if (currency.address === ZERO_ADDRESS) {
       const transferTx = await signer.sendTransaction({ to: recipient, value: amount });
@@ -328,7 +335,7 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
       const transferTx = await token.transfer(recipient, amount);
       transferReceipt = await transferTx.wait();
     }
-    setResult(out, "⏳ 応援記録を署名してください...(2/2)");
+    setResult(out, "⏳ Please sign the support record... (2/2) / 応援記録を署名してください...");
     const coder = ethers.AbiCoder.defaultAbiCoder();
     const encodedData = coder.encode(["address", "address", "uint256", "string"], [currency.address, referrer, amount, comment]);
     const attestTx = await eas.attest({
@@ -339,13 +346,13 @@ document.getElementById("tip-form").addEventListener("submit", async (e) => {
     const myAddress = await signer.getAddress();
     setResult(
       out,
-      `✅ 投げ銭完了（あなたのウォレットで署名済み）<br>送金tx: ${txLink(transferReceipt.hash)}<br>記録tx: ${txLink(attestReceipt.hash)}` +
+      `✅ Tip sent (signed by your own wallet) / 投げ銭完了（あなたのウォレットで署名済み）<br>transfer tx: ${txLink(transferReceipt.hash)}<br>record tx: ${txLink(attestReceipt.hash)}` +
         shareButtonHtml(recipient, refUid, myAddress, currencyKey, document.getElementById("amount").value)
     );
     loadLeaderboard();
     loadTrending();
   } catch (err) {
-    setResult(out, "❌ エラー: " + err.message, true);
+    setResult(out, "❌ Error / エラー: " + err.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -359,13 +366,13 @@ document.getElementById("org-subname-form").addEventListener("submit", async (e)
   try {
     requireWallet();
     const label = document.getElementById("org_label").value.trim();
-    setResult(out, "⏳ ウォレットで署名してください...");
+    setResult(out, "⏳ Please sign in your wallet... / ウォレットで署名してください...");
     const tx = await orgRegistry.registerSubname(label);
     const receipt = await tx.wait();
-    setResult(out, `✅ 登録完了: <b>${label}.${ENSV2_PARENT_NAME}</b><br>tx: ${txLink(receipt.hash)}`);
+    setResult(out, `✅ Registered / 登録完了: <b>${label}.${ENSV2_PARENT_NAME}</b><br>tx: ${txLink(receipt.hash)}`);
     loadLeaderboard();
   } catch (err) {
-    setResult(out, "❌ エラー: " + err.message, true);
+    setResult(out, "❌ Error / エラー: " + err.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -377,9 +384,9 @@ function shareButtonHtml(recipient, refUid, referrerAddress, currency, amount) {
   url.searchParams.set("recipient", recipient);
   url.searchParams.set("ref_uid", refUid);
   url.searchParams.set("referrer", referrerAddress);
-  const text = `情報公開請求を ${amount} ${currency} で応援しました。あなたも投げ銭で応援しませんか？ #DisclosureProof #ETHGlobalTokyo`;
+  const text = `I supported a Freedom-of-Information disclosure request with ${amount} ${currency}. Want to support one too? / 情報公開請求を ${amount} ${currency} で応援しました。あなたも投げ銭で応援しませんか？ #DisclosureProof #ETHGlobalTokyo`;
   const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url.toString())}`;
-  return `<br><a class="tx-link" href="${intent}" target="_blank">🔥 この応援をSNSでシェアして紹介リンクを広める ↗</a>`;
+  return `<br><a class="tx-link" href="${intent}" target="_blank">🔥 Share this on social media / この応援をSNSでシェアして紹介リンクを広める ↗</a>`;
 }
 
 (function prefillFromShareLink() {
@@ -391,23 +398,23 @@ function shareButtonHtml(recipient, refUid, referrerAddress, currency, amount) {
 
 async function loadLeaderboard() {
   const el = document.getElementById("leaderboard");
-  el.innerHTML = `<p class="empty">読み込み中...</p>`;
+  el.innerHTML = `<p class="empty">Loading... / 読み込み中...</p>`;
   try {
     const res = await fetch(`${API}/leaderboard`);
     const data = await res.json();
     const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ") || "—";
     const rows = (list, countKey, countLabel) => {
-      if (!list.length) return `<p class="empty">まだありません。</p>`;
-      return `<table><tr><th>#</th><th>アドレス</th><th>内訳</th><th>${countLabel}</th></tr>
+      if (!list.length) return `<p class="empty">Nothing yet. / まだありません。</p>`;
+      return `<table><tr><th>#</th><th>Address / アドレス</th><th>Breakdown / 内訳</th><th>${countLabel}</th></tr>
         ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.org_subname || r.ens_name || short(r.address)}</td><td>${formatBreakdown(r.breakdown)}</td><td>${r[countKey]}</td></tr>`).join("")}
       </table>`;
     };
     el.innerHTML = `
-      <div class="subtable-title">応援者ランキング</div>${rows(data.top_tippers, "tip_count", "回数")}
-      <div class="subtable-title">紹介者ランキング</div>${rows(data.top_referrers, "referral_count", "紹介数")}
+      <div class="subtable-title">Top Tippers / 応援者ランキング</div>${rows(data.top_tippers, "tip_count", "Tips / 回数")}
+      <div class="subtable-title">Top Referrers / 紹介者ランキング</div>${rows(data.top_referrers, "referral_count", "Referrals / 紹介数")}
     `;
   } catch (err) {
-    el.innerHTML = `<p class="empty">取得失敗: ${err.message}</p>`;
+    el.innerHTML = `<p class="empty">Failed to load / 取得失敗: ${err.message}</p>`;
   }
 }
 
@@ -416,21 +423,21 @@ loadLeaderboard();
 
 async function loadTrending() {
   const el = document.getElementById("trending");
-  el.innerHTML = `<p class="empty">読み込み中...</p>`;
+  el.innerHTML = `<p class="empty">Loading... / 読み込み中...</p>`;
   try {
     const res = await fetch(`${API}/trending`);
     const data = await res.json();
     if (!data.length) {
-      el.innerHTML = `<p class="empty">まだ急上昇中の請求はありません。</p>`;
+      el.innerHTML = `<p class="empty">No trending requests yet. / まだ急上昇中の請求はありません。</p>`;
       return;
     }
     const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ");
     el.innerHTML = `<table>
-      <tr><th>#</th><th>請求先</th><th>要約</th><th>応援</th></tr>
-      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.target_authority}</td><td>${r.summary || r.request_type}</td><td>${r.tip_count}件 (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
+      <tr><th>#</th><th>Target authority / 請求先</th><th>Summary / 要約</th><th>Support / 応援</th></tr>
+      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.target_authority}</td><td>${r.summary || r.request_type}</td><td>${r.tip_count} tips (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
     </table>`;
   } catch (err) {
-    el.innerHTML = `<p class="empty">取得失敗: ${err.message}</p>`;
+    el.innerHTML = `<p class="empty">Failed to load / 取得失敗: ${err.message}</p>`;
   }
 }
 
