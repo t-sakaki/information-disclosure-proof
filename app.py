@@ -25,6 +25,8 @@ GET /leaderboard
     -> { "top_tippers": [...], "top_referrers": [...] }
 """
 from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from attest import ZERO_ADDRESS, submit_attestation
@@ -32,6 +34,12 @@ from leaderboard import build_leaderboard
 from tip import send_tip
 
 app = FastAPI(title="information-disclosure-proof")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def index():
+    return FileResponse("static/index.html")
 
 
 class TipRequest(BaseModel):

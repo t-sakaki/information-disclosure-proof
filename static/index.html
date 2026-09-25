@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disclosure Proof</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0b0d12;
+    --surface: #14171f;
+    --surface-2: #1b1f2a;
+    --border: #262b38;
+    --text: #eef0f4;
+    --text-dim: #9aa1b1;
+    --accent: #6d8bff;
+    --accent-2: #7ef0c0;
+    --danger: #ff6b6b;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f5f9;
+      --surface: #ffffff;
+      --surface-2: #f0f1f6;
+      --border: #e2e4ec;
+      --text: #14161c;
+      --text-dim: #666d80;
+      --accent: #4361ee;
+      --accent-2: #12b981;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.hero { text-align: center; margin-bottom: 2.5rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+    font-size: 0.78rem; padding: 0.3rem 0.8rem; border-radius: 999px; margin-bottom: 1rem;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 6px var(--accent-2); }
+  h1 {
+    font-size: 1.8rem; margin: 0 0 0.5rem; letter-spacing: -0.02em;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lede { color: var(--text-dim); font-size: 0.95rem; max-width: 520px; margin: 0 auto; line-height: 1.7; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.2rem; }
+  .card-head .icon {
+    width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .card-head h2 { font-size: 1.05rem; margin: 0; }
+  .card-head p { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--text-dim); }
+  form { display: flex; flex-direction: column; gap: 0.9rem; }
+  .field { display: flex; flex-direction: column; gap: 0.35rem; }
+  label { font-size: 0.78rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+  label .opt { font-weight: 400; text-transform: none; opacity: 0.7; }
+  input, textarea {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.65rem 0.8rem; font-size: 0.95rem; color: var(--text); font-family: inherit;
+  }
+  input[type="file"] { padding: 0.5rem; }
+  button {
+    padding: 0.75rem 1.2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #8a6dff); color: white;
+  }
+  button:disabled { opacity: 0.45; cursor: wait; }
+  button.ghost { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+  .result {
+    margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 10px; background: var(--surface-2);
+    border: 1px solid var(--border); font-size: 0.85rem; line-height: 1.7; word-break: break-all; display: none;
+  }
+  .result.show { display: block; }
+  .result.error { border-color: var(--danger); color: var(--danger); }
+  .result b { color: var(--accent-2); font-weight: 600; }
+  .tx-link { color: var(--accent); text-decoration: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+  th { text-align: left; font-size: 0.72rem; text-transform: uppercase; color: var(--text-dim); padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); }
+  td { padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--border); }
+  .rank { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface-2); font-size: 0.75rem; font-weight: 700; color: var(--text-dim); }
+  .subtable-title { font-size: 0.85rem; font-weight: 600; margin: 1.2rem 0 0.2rem; color: var(--text-dim); }
+  .empty { color: var(--text-dim); font-size: 0.85rem; padding: 1rem 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="hero">
+    <div class="badge"><span class="dot"></span> Base Sepolia Testnet · EAS</div>
+    <h1>Disclosure Proof</h1>
+    <p class="lede">行政文書開示請求をオンチェーンに刻印し、市民の応援（投げ銭）で支える仕組みです。</p>
+  </header>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="icon">📝</div>
+      <div><h2>開示請求を刻印する</h2><p>EASで改ざん不可能な証明としてBase Sepoliaに記録します</p></div>
+    </div>
+    <form id="attest-form">
+      <div class="field"><label>対象文書</label><input type="file" id="file" required></div>
+      <div class="field"><label>請求先（実施機関）</label><input type="text" id="target_authority" placeholder="例: 〇〇市長 / 〇〇県知事" required></div>
+      <div class="field"><label>請求の種類</label><input type="text" id="request_type" value="行政文書開示請求" required></div>
+      <div class="field"><label>請求内容の要約</label><textarea id="summary" rows="2"></textarea></div>
+      <button type="submit">🔏 刻印する</button>
+    </form>
+    <div class="result" id="attest-result"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="icon">💸</div>
+      <div><h2>投げ銭で応援する</h2><p>請求者にETHを送り、応援メッセージをオンチェーンに残します</p></div>
+    </div>
+    <form id="tip-form">
+      <div class="field"><label>請求者のウォレットアドレス</label><input type="text" id="recipient_address" placeholder="0x..." required></div>
+      <div class="field"><label>応援対象の attestation UID</label><input type="text" id="ref_attestation_uid" placeholder="0x..." required></div>
+      <div class="field"><label>投げ銭額（ETH）</label><input type="number" id="amount_eth" step="0.00001" placeholder="0.0001" required></div>
+      <div class="field"><label>応援メッセージ <span class="opt">(任意)</span></label><input type="text" id="comment"></div>
+      <div class="field"><label>紹介者アドレス <span class="opt">(任意)</span></label><input type="text" id="referrer_address" placeholder="0x..."></div>
+      <button type="submit">💸 投げ銭する</button>
+    </form>
+    <div class="result" id="tip-result"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="icon">🏆</div>
+      <div><h2>応援リーダーボード</h2><p>オンチェーンデータからリアルタイム集計</p></div>
+    </div>
+    <button class="ghost" id="refresh-leaderboard">↻ 最新の状態を取得</button>
+    <div id="leaderboard"></div>
+  </section>
+
+</div>
+
+<script>
+const API = "";
+function short(addr) { return addr ? addr.slice(0, 6) + "..." + addr.slice(-4) : ""; }
+function txLink(hash) { return `<a class="tx-link" href="https://sepolia.basescan.org/tx/${hash}" target="_blank">${short(hash)} ↗</a>`; }
+function setResult(el, html, isError = false) {
+  el.classList.add("show");
+  el.classList.toggle("error", isError);
+  el.innerHTML = html;
+}
+
+document.getElementById("attest-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector("button");
+  const out = document.getElementById("attest-result");
+  btn.disabled = true;
+  setResult(out, "⏳ 送信中...");
+  const fd = new FormData();
+  fd.append("file", document.getElementById("file").files[0]);
+  fd.append("target_authority", document.getElementById("target_authority").value);
+  fd.append("request_type", document.getElementById("request_type").value);
+  fd.append("summary", document.getElementById("summary").value);
+  try {
+    const res = await fetch(`${API}/attest`, { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    setResult(out, `✅ 刻印完了<br>attestation UID: <b>${data.attestation_uid}</b><br>tx: ${txLink(data.tx_hash)}`);
+    document.getElementById("ref_attestation_uid").value = data.attestation_uid;
+  } catch (err) {
+    setResult(out, "❌ エラー: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("tip-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector("button");
+  const out = document.getElementById("tip-result");
+  btn.disabled = true;
+  setResult(out, "⏳ 送信中...");
+  const referrer = document.getElementById("referrer_address").value.trim();
+  const body = {
+    recipient_address: document.getElementById("recipient_address").value,
+    ref_attestation_uid: document.getElementById("ref_attestation_uid").value,
+    amount_wei: Math.round(parseFloat(document.getElementById("amount_eth").value) * 1e18),
+    comment: document.getElementById("comment").value,
+  };
+  if (referrer) body.referrer_address = referrer;
+  try {
+    const res = await fetch(`${API}/tip`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    setResult(out, `✅ 投げ銭完了<br>送金tx: ${txLink(data.transfer_tx_hash)}<br>記録tx: ${txLink(data.attestation_tx_hash)}`);
+    loadLeaderboard();
+  } catch (err) {
+    setResult(out, "❌ エラー: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function loadLeaderboard() {
+  const el = document.getElementById("leaderboard");
+  el.innerHTML = `<p class="empty">読み込み中...</p>`;
+  try {
+    const res = await fetch(`${API}/leaderboard`);
+    const data = await res.json();
+    const rows = (list, totalKey, countKey, countLabel) => {
+      if (!list.length) return `<p class="empty">まだありません。</p>`;
+      return `<table><tr><th>#</th><th>アドレス</th><th>合計</th><th>${countLabel}</th></tr>
+        ${list.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${short(r.address)}</td><td>${r[totalKey]} ETH</td><td>${r[countKey]}</td></tr>`).join("")}
+      </table>`;
+    };
+    el.innerHTML = `
+      <div class="subtable-title">応援者ランキング</div>${rows(data.top_tippers, "total_eth", "tip_count", "回数")}
+      <div class="subtable-title">紹介者ランキング</div>${rows(data.top_referrers, "referred_total_eth", "referral_count", "紹介数")}
+    `;
+  } catch (err) {
+    el.innerHTML = `<p class="empty">取得失敗: ${err.message}</p>`;
+  }
+}
+
+document.getElementById("refresh-leaderboard").addEventListener("click", loadLeaderboard);
+loadLeaderboard();
+</script>
+</body>
+</html>
