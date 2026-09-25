@@ -8,12 +8,33 @@ POST /attest
         request_type=<請求の種類, e.g. "行政文書開示請求">
         summary=<short text>
     -> { "tx_hash": "0x...", "attestation_uid": "0x..." }
+
+POST /tip
+    投げ銭: 開示請求への応援としてETHを請求者に送金し、応援メッセージを
+    元のattestationに紐づけて記録する。
+    json body:
+        recipient_address=<請求者のウォレットアドレス>
+        ref_attestation_uid=<応援対象のattestation UID>
+        amount_wei=<送金額(wei)>
+        comment=<応援メッセージ>
+        referrer_address=<紹介者のウォレットアドレス（任意、投げ銭リレー用）>
+    -> { "transfer_tx_hash": "0x...", "attestation_tx_hash": "0x...", "tip_attestation_uid": "0x..." }
 """
 from fastapi import FastAPI, File, Form, UploadFile
+from pydantic import BaseModel
 
-from attest import submit_attestation
+from attest import ZERO_ADDRESS, submit_attestation
+from tip import send_tip
 
 app = FastAPI(title="information-disclosure-proof")
+
+
+class TipRequest(BaseModel):
+    recipient_address: str
+    ref_attestation_uid: str
+    amount_wei: int
+    comment: str = ""
+    referrer_address: str = ZERO_ADDRESS
 
 
 @app.post("/attest")
@@ -25,6 +46,17 @@ async def attest(
 ):
     document_bytes = await file.read()
     return submit_attestation(document_bytes, target_authority, request_type, summary)
+
+
+@app.post("/tip")
+async def tip(body: TipRequest):
+    return send_tip(
+        body.recipient_address,
+        body.ref_attestation_uid,
+        body.amount_wei,
+        body.comment,
+        body.referrer_address,
+    )
 
 
 @app.get("/health")
