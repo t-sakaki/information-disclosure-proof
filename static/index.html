@@ -129,19 +129,10 @@
 
   <section class="card">
     <div class="card-head">
-      <div class="icon">💸</div>
-      <div><h2>Support with a Tip<span class="ja">投げ銭で応援する</span></h2><p>Send ETH or USDC to the requester and leave an on-chain message of support.<span class="ja">請求者にETH/USDCを送り、応援メッセージをオンチェーンに残します</span></p></div>
+      <div class="icon">🔗</div>
+      <div><h2>Support &amp; Share<span class="ja">応援・シェア</span></h2><p>Every notarized request gets its own public Case page — that's where tips, reactions, and sharing happen, not here.<span class="ja">刻印した請求にはそれぞれ公開の「Caseページ」が発行されます。投げ銭・リアクション・SNSシェアはすべてそこで行います（この登録フォームでは行いません）。</span></p></div>
     </div>
-    <form id="tip-form">
-      <div class="field"><label>Requester's wallet address<span class="ja">請求者のウォレットアドレス</span></label><input type="text" id="recipient_address" placeholder="0x..." required></div>
-      <div class="field"><label>Attestation UID to support<span class="ja">応援対象の attestation UID</span></label><input type="text" id="ref_attestation_uid" placeholder="0x..." required></div>
-      <div class="field"><label>Currency<span class="ja">通貨</span></label><select id="currency"><option value="ETH">ETH</option><option value="USDC">USDC</option></select></div>
-      <div class="field"><label>Tip amount<span class="ja">投げ銭額</span></label><input type="number" id="amount" step="0.000001" placeholder="0.0001" required></div>
-      <div class="field"><label>Message <span class="opt">(optional)</span><span class="ja">応援メッセージ（任意）</span></label><input type="text" id="comment"></div>
-      <div class="field"><label>Referrer address <span class="opt">(optional)</span><span class="ja">紹介者アドレス（任意）</span></label><input type="text" id="referrer_address" placeholder="0x..."></div>
-      <button type="submit">💸 Send Tip<span class="ja">投げ銭する</span></button>
-    </form>
-    <div class="result" id="tip-result"></div>
+    <p class="lede" style="margin:0;text-align:left;">Notarize a request above and you'll get a link to its Case page. Share that link — not this homepage — so people see exactly what was requested before they support it.<span class="ja">上のフォームで刻印すると、そのCaseページへのリンクが表示されます。このトップページではなく、そのリンクをシェアしてください。閲覧者は応援する前に、実際の請求内容を確認できます。</span></p>
   </section>
 
   <section class="card">
@@ -199,19 +190,13 @@ const BASE_SEPOLIA_PARAMS = {
 };
 const EAS_CONTRACT_ADDRESS = "0x4200000000000000000000000000000000000021";
 const ATTEST_SCHEMA_UID = "0x92cf840e48d7893e83e58e67e6209f0a9ad5b720bafdffc2fd740a38585d549a";
-const TIP_SCHEMA_UID = "0xb047ba9c9239b1578838500266a3199191c45b28b001d2b3ab3e1e2cb7815b58";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ZERO_BYTES32 = "0x" + "0".repeat(64);
-const TOKENS = {
-  ETH: { address: ZERO_ADDRESS, decimals: 18 },
-  USDC: { address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", decimals: 6 },
-};
 
 const EAS_ABI = [
   "function attest((bytes32 schema,(address recipient,uint64 expirationTime,bool revocable,bytes32 refUID,bytes data,uint256 value) data) request) payable returns (bytes32)",
   "event Attested(address indexed recipient, address indexed attester, bytes32 uid, bytes32 indexed schemaUID)",
 ];
-const ERC20_ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
 
 // ENSv2互換の自己ホスト団体サブネームレジストリ（OrgSubnameRegistryV2, Base Sepolia）。
 // 公式ENS Labs ENSv2 Namechainではなく、本プロジェクト独自のコントラクト。
@@ -302,55 +287,13 @@ document.getElementById("attest-form").addEventListener("submit", async (e) => {
     const receipt = await tx.wait();
     const parsed = receipt.logs.map((log) => { try { return eas.interface.parseLog(log); } catch { return null; } }).find((l) => l && l.name === "Attested");
     const uid = parsed.args.uid;
-    setResult(out, `✅ Notarized (signed by your own wallet) / 刻印完了（あなたのウォレットで署名済み）<br>attestation UID: <b>${uid}</b><br>tx: ${txLink(receipt.hash)}`);
-    document.getElementById("ref_attestation_uid").value = uid;
-  } catch (err) {
-    setResult(out, "❌ Error / エラー: " + err.message, true);
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById("tip-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = e.target.querySelector("button");
-  const out = document.getElementById("tip-result");
-  btn.disabled = true;
-  try {
-    requireWallet();
-    const recipient = document.getElementById("recipient_address").value;
-    const refUid = document.getElementById("ref_attestation_uid").value;
-    const currencyKey = document.getElementById("currency").value;
-    const currency = TOKENS[currencyKey];
-    const amount = ethers.parseUnits(document.getElementById("amount").value || "0", currency.decimals);
-    const comment = document.getElementById("comment").value;
-    const referrer = document.getElementById("referrer_address").value.trim() || ZERO_ADDRESS;
-    setResult(out, `⏳ Please sign the ${currencyKey} transfer... (1/2) / ${currencyKey}の送金を署名してください...`);
-    let transferReceipt;
-    if (currency.address === ZERO_ADDRESS) {
-      const transferTx = await signer.sendTransaction({ to: recipient, value: amount });
-      transferReceipt = await transferTx.wait();
-    } else {
-      const token = new ethers.Contract(currency.address, ERC20_ABI, signer);
-      const transferTx = await token.transfer(recipient, amount);
-      transferReceipt = await transferTx.wait();
-    }
-    setResult(out, "⏳ Please sign the support record... (2/2) / 応援記録を署名してください...");
-    const coder = ethers.AbiCoder.defaultAbiCoder();
-    const encodedData = coder.encode(["address", "address", "uint256", "string"], [currency.address, referrer, amount, comment]);
-    const attestTx = await eas.attest({
-      schema: TIP_SCHEMA_UID,
-      data: { recipient, expirationTime: 0, revocable: true, refUID: refUid, data: encodedData, value: 0 },
-    });
-    const attestReceipt = await attestTx.wait();
-    const myAddress = await signer.getAddress();
+    const caseUrl = new URL(`/case/${uid}`, window.location.origin).toString();
     setResult(
       out,
-      `✅ Tip sent (signed by your own wallet) / 投げ銭完了（あなたのウォレットで署名済み）<br>transfer tx: ${txLink(transferReceipt.hash)}<br>record tx: ${txLink(attestReceipt.hash)}` +
-        shareButtonHtml(recipient, refUid, myAddress, currencyKey, document.getElementById("amount").value)
+      `✅ Notarized (signed by your own wallet) / 刻印完了（あなたのウォレットで署名済み）<br>attestation UID: <b>${uid}</b><br>tx: ${txLink(receipt.hash)}` +
+        `<br><br>👉 <a class="tx-link" href="${caseUrl}"><b>Open its Case page</b> / Caseページを開く ↗</a><br>` +
+        `Share that link so people can see the request and support it.<span class="ja">投げ銭・応援・SNSシェアはそのページで行ってください。</span>`
     );
-    loadLeaderboard();
-    loadTrending();
   } catch (err) {
     setResult(out, "❌ Error / エラー: " + err.message, true);
   } finally {
@@ -377,24 +320,6 @@ document.getElementById("org-subname-form").addEventListener("submit", async (e)
     btn.disabled = false;
   }
 });
-
-function shareButtonHtml(recipient, refUid, referrerAddress, currency, amount) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.searchParams.set("recipient", recipient);
-  url.searchParams.set("ref_uid", refUid);
-  url.searchParams.set("referrer", referrerAddress);
-  const text = `I supported a Freedom-of-Information disclosure request with ${amount} ${currency}. Want to support one too? / 情報公開請求を ${amount} ${currency} で応援しました。あなたも投げ銭で応援しませんか？ #DisclosureProof #ETHGlobalTokyo`;
-  const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url.toString())}`;
-  return `<br><a class="tx-link" href="${intent}" target="_blank">🔥 Share this on social media / この応援をSNSでシェアして紹介リンクを広める ↗</a>`;
-}
-
-(function prefillFromShareLink() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.has("recipient")) document.getElementById("recipient_address").value = params.get("recipient");
-  if (params.has("ref_uid")) document.getElementById("ref_attestation_uid").value = params.get("ref_uid");
-  if (params.has("referrer")) document.getElementById("referrer_address").value = params.get("referrer");
-})();
 
 async function loadLeaderboard() {
   const el = document.getElementById("leaderboard");
@@ -434,7 +359,7 @@ async function loadTrending() {
     const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ");
     el.innerHTML = `<table>
       <tr><th>#</th><th>Target authority / 請求先</th><th>Summary / 要約</th><th>Support / 応援</th></tr>
-      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td>${r.target_authority}</td><td>${r.summary || r.request_type}</td><td>${r.tip_count} tips (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
+      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td><a class="tx-link" href="/case/${r.attestation_uid}">${r.target_authority}</a></td><td>${r.summary || r.request_type}</td><td>${r.tip_count} tips (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
     </table>`;
   } catch (err) {
     el.innerHTML = `<p class="empty">Failed to load / 取得失敗: ${err.message}</p>`;

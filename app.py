@@ -27,24 +27,106 @@ GET /leaderboard
 
 GET /trending
     直近(デフォルト24時間)で最も応援が集まっている開示請求を「急上昇」として返す。
+
+GET /case/{uid}
+    開示請求1件のプレビューページ（SNSシェア用のOGPタグ付きHTML）。
+    投げ銭・応援UIはこのページにのみ存在し、登録フォーム（"/")には無い。
+
+GET /api/case/{uid}
+    上記ページと同じデータをJSONで返す（プレビューページのUIが叩く用途）。
+
+GET /case/{uid}/og.png
+    上記プレビューページのog:image。開示請求の内容（請求先・種別・要約・
+    応援状況）を焼き込んだ画像をPNGで返す（毎回オンチェーンデータから
+    動的に生成、キャッシュDBは持たない）。
+
+GET /api/case/{uid}/reactions?address=0x...
+    Caseへのリアクション（👀🙋🔁）の件数と、addressを渡した場合は
+    自分がすでに反応済みかを返す。オンチェーンではなくUpstash Redis
+    に保存（投げ銭と違い、絵文字クリック1つにガス代・署名トランザクション
+    を要求するのはUX上望ましくないため）。
+
+POST /api/case/{uid}/reactions
+    json body: { reaction, address, timestamp, signature }
+    signatureはブラウザがreactions.build_message()と同じ文言に対して
+    personal_signで署名したもの（ガス代なし、トランザクションではない）。
+    トグル動作（すでに反応済みなら取り消す）。
 """
-from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import FileResponse
+import os
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from attest import ZERO_ADDRESS, submit_attestation
+from case_page import render_case_html
+from ledger import get_case
 from leaderboard import build_leaderboard
+from og_image import render_case_og_image
+from reactions import ReactionsNotConfigured, get_reactions, toggle_reaction
 from tip import send_tip
 from trending import trending_requests
 
+# Absolute path so this resolves the same way whether run via `uvicorn
+# app:app` from the repo root, or bundled and invoked from an arbitrary
+# working directory by Vercel's Python runtime (see api/index.py).
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
 app = FastAPI(title="information-disclosure-proof")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
 async def index():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/case/{uid}", response_class=HTMLResponse)
+async def case_page(uid: str, request: Request):
+    case = get_case(uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found / 該当する開示請求が見つかりません")
+    return render_case_html(uid, case, str(request.base_url))
+
+
+@app.get("/api/case/{uid}")
+async def case_api(uid: str):
+    case = get_case(uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found / 該当する開示請求が見つかりません")
+    return case
+
+
+@app.get("/case/{uid}/og.png")
+async def case_og_image(uid: str):
+    case = get_case(uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found / 該当する開示請求が見つかりません")
+    png_bytes = render_case_og_image(uid, case)
+    return Response(content=png_bytes, media_type="image/png", headers={"Cache-Control": "public, max-age=60"})
+
+
+@app.get("/api/case/{uid}/reactions")
+async def case_reactions(uid: str, address: str | None = None):
+    return get_reactions(uid, address)
+
+
+class ReactionRequest(BaseModel):
+    reaction: str
+    address: str
+    timestamp: int
+    signature: str
+
+
+@app.post("/api/case/{uid}/reactions")
+async def case_react(uid: str, body: ReactionRequest):
+    try:
+        return toggle_reaction(uid, body.reaction, body.address, body.timestamp, body.signature)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ReactionsNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 class TipRequest(BaseModel):
