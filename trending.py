@@ -51,7 +51,7 @@ def trending_requests(window_hours: int = 24, limit: int = 10) -> list[dict]:
                 "requester": req["requester"],
                 "target_authority": req["target_authority"],
                 "request_type": req["request_type"],
-                "summary": req["summary"],
+                "requested_documents": req["requested_documents"],
                 "tip_count": scores[uid]["tip_count"],
                 "breakdown": [
                     {"currency": symbol, "amount": amount}

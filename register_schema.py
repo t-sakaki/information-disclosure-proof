@@ -2,7 +2,7 @@
 Register a new EAS schema on Base Sepolia via the SchemaRegistry contract,
 without going through the web UI. Usage:
 
-    python register_schema.py "string targetAuthority,string requestType,bytes32 documentHash,string summary"
+    python register_schema.py "string recordId,string authority,string requestType,string requestedDocuments,bytes32 documentHash,uint256 timestamp,string legalBasis"
 """
 import os
 import sys

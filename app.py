@@ -4,10 +4,15 @@ Minimal API to attest Freedom-of-Information disclosure requests on-chain.
 POST /attest
     multipart/form-data:
         file=<document>
-        target_authority=<実施機関名, e.g. "〇〇市長">
+        record_id=<呼び出し側が割り振るID, e.g. "req-ab12cd34">
+        authority=<実施機関名, e.g. "〇〇市長">
         request_type=<請求の種類, e.g. "行政文書開示請求">
-        summary=<short text>
+        requested_documents=<請求する公文書の特定内容。原本からの逐語、要約不可>
+        legal_basis=<根拠法令・条例, e.g. "情報公開法">
+        acknowledge_warnings=<true/false, 個人情報らしき記述の警告を確認済みか>
     -> { "tx_hash": "0x...", "attestation_uid": "0x..." }
+    422を返す場合、bodyに personal_info_warnings が含まれる（PII検出、
+    再送時に acknowledge_warnings=true を付ける）。
 
 POST /tip
     投げ銭: 開示請求への応援としてETHを請求者に送金し、応援メッセージを
@@ -65,6 +70,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from attest import ZERO_ADDRESS, submit_attestation
+from pii_scan import PersonalInfoWarning
 from case_page import render_case_html
 from ledger import get_case
 from leaderboard import build_leaderboard
@@ -79,7 +85,7 @@ from uniswap_price import get_eth_usd_price
 # working directory by Vercel's Python runtime (see api/index.py).
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
-app = FastAPI(title="information-disclosure-proof")
+app = FastAPI(title="Civic Disclosure Tip")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -147,12 +153,26 @@ class TipRequest(BaseModel):
 @app.post("/attest")
 async def attest(
     file: UploadFile = File(...),
-    target_authority: str = Form(...),
+    record_id: str = Form(...),
+    authority: str = Form(...),
     request_type: str = Form(...),
-    summary: str = Form(...),
+    requested_documents: str = Form(""),
+    legal_basis: str = Form("情報公開法・各自治体情報公開条例"),
+    acknowledge_warnings: bool = Form(False),
 ):
     document_bytes = await file.read()
-    return submit_attestation(document_bytes, target_authority, request_type, summary)
+    try:
+        return submit_attestation(
+            document_bytes,
+            record_id,
+            authority,
+            request_type,
+            requested_documents,
+            legal_basis,
+            acknowledge_warnings,
+        )
+    except PersonalInfoWarning as e:
+        raise HTTPException(422, {"message": str(e), "personal_info_warnings": e.warnings})
 
 
 @app.post("/tip")

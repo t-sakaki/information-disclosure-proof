@@ -66,14 +66,17 @@ def token_info(token_address: str) -> tuple[str, int]:
 
 def decode_request_data(data_hex: str) -> dict[str, Any]:
     raw = bytes.fromhex(data_hex[2:] if data_hex.startswith("0x") else data_hex)
-    target_authority, request_type, doc_hash, summary = decode(
-        ["string", "string", "bytes32", "string"], raw
+    record_id, authority, request_type, requested_documents, doc_hash, timestamp, legal_basis = decode(
+        ["string", "string", "string", "string", "bytes32", "uint256", "string"], raw
     )
     return {
-        "target_authority": target_authority,
+        "record_id": record_id,
+        "target_authority": authority,
         "request_type": request_type,
+        "requested_documents": requested_documents,
         "document_hash": "0x" + doc_hash.hex(),
-        "summary": summary,
+        "timestamp": timestamp,
+        "legal_basis": legal_basis,
     }
 
 
