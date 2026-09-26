@@ -1,7 +1,7 @@
 """
 Best-effort machine translation of on-chain Japanese fields (target
-authority, request type, summary) into English, for the Case preview
-page's "Request details" card.
+authority, request type, requested documents) into English, for the Case
+preview page's "Request details" card.
 
 The actual content requesters attest on-chain is in Japanese, since
 Japanese Freedom-of-Information requests are addressed to Japanese
@@ -41,8 +41,8 @@ _cache: dict[str, str | None] = {}
 _PROMPT_PREFIX = (
     "Translate this Japanese text from a Freedom-of-Information disclosure "
     "request into natural, concise English. It may be an agency name, a "
-    "request-type label, or a summary of requested documents. Reply with "
-    "ONLY the translation, no preamble, no quotes.\n\n"
+    "request-type label, or a verbatim excerpt naming the requested "
+    "documents. Reply with ONLY the translation, no preamble, no quotes.\n\n"
 )
 
 

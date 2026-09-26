@@ -1,4 +1,4 @@
-# Disclosure Proof — デモ動画 読み上げ原稿
+# Civic Disclosure Tip — デモ動画 読み上げ原稿
 
 ETHGlobalルール: 2〜4分、720p以上、TTS/AI音声禁止（肉声のみ）。
 合計目安: 約3分5秒（実演部分を挟む場合はスライド部分をさらに短縮）
@@ -7,7 +7,7 @@ ETHGlobalルール: 2〜4分、720p以上、TTS/AI音声禁止（肉声のみ）
 
 ## 1. カバー（約15秒）
 
-こんにちは。これは Disclosure Proof、行政文書開示請求を、オンチェーンの証明と市民の投げ銭でつなぐプロジェクトです。ETHGlobal Tokyo 2026、Base Sepolia上で構築しました。
+こんにちは。これは Civic Disclosure Tip、行政文書開示請求を、オンチェーンの証明と市民の投げ銭でつなぐプロジェクトです。ETHGlobal Tokyo 2026、Base Sepolia上で構築しました。
 
 ## 2. 課題（約20秒）
 

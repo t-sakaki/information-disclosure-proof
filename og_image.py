@@ -2,7 +2,8 @@
 Generates the og:image / twitter:image for a Case page (/case/{uid}) as a
 PNG, so that when the Case link is shared on X/Bluesky/etc, the preview
 card shows the actual disclosure request content (target authority,
-summary, support raised) -- not just a bare title/description text card.
+requested documents, support raised) -- not just a bare title/description
+text card.
 
 Rendered with Pillow rather than an HTML->image service, since the content
 is short and structured (a handful of fields) and this avoids adding a
@@ -117,11 +118,11 @@ def render_case_og_image(uid: str, case: dict[str, Any]) -> bytes:
     draw.text((pad + 20, y + 9), type_text, font=type_font, fill=ACCENT)
     y += 74
 
-    # --- summary ---
-    summary_font = _font(32, 400)
-    summary_text = req["summary"] or "(no summary provided / 要約なし)"
-    for line in _wrap(draw, summary_text, summary_font, WIDTH - pad * 2, 3):
-        draw.text((pad, y), line, font=summary_font, fill=TEXT_DIM)
+    # --- requested documents ---
+    docs_font = _font(32, 400)
+    docs_text = req["requested_documents"] or "(no details provided / 詳細なし)"
+    for line in _wrap(draw, docs_text, docs_font, WIDTH - pad * 2, 3):
+        draw.text((pad, y), line, font=docs_font, fill=TEXT_DIM)
         y += 44
 
     # --- bottom stat bar ---
@@ -153,7 +154,7 @@ def render_case_og_image(uid: str, case: dict[str, Any]) -> bytes:
     draw.text((col2_x, bar_top + 52), str(case["tip_count"]), font=supporters_font, fill=TEXT)
 
     site_font = _font(24, 600)
-    site_text = "Disclosure Proof"
+    site_text = "Civic Disclosure Tip"
     site_w = draw.textlength(site_text, font=site_font)
     draw.text((WIDTH - pad - 40 - site_w, bar_top + 34), site_text, font=site_font, fill=TEXT)
 

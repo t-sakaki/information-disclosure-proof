@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Disclosure Proof</title>
+<title>Civic Disclosure Tip</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -69,6 +69,10 @@
     padding: 0.65rem 0.8rem; font-size: 0.95rem; color: var(--text); font-family: inherit;
   }
   input[type="file"] { padding: 0.5rem; }
+  .hint { margin: 0; font-size: 0.76rem; color: var(--text-dim); text-transform: none; letter-spacing: normal; font-weight: 400; }
+  .checkbox-field { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8rem; text-transform: none; font-weight: 400; color: var(--text); }
+  .checkbox-field input { width: auto; margin-top: 0.2rem; }
+  .result.warning { border-color: #d9a441; color: #d9a441; }
   button {
     padding: 0.75rem 1.2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; border: none; border-radius: 10px;
     background: linear-gradient(135deg, var(--accent), #8a6dff); color: white;
@@ -99,7 +103,7 @@
 
   <header class="hero">
     <div class="badge"><span class="dot"></span> Base Sepolia Testnet · EAS</div>
-    <h1>Disclosure Proof</h1>
+    <h1>Civic Disclosure Tip</h1>
     <p class="lede">Notarize Freedom-of-Information disclosure requests on-chain, and let citizens support them with tips.<span class="ja">行政文書開示請求をオンチェーンに刻印し、市民の応援（投げ銭）で支える仕組みです。</span></p>
   </header>
 
@@ -119,9 +123,16 @@
     </div>
     <form id="attest-form">
       <div class="field"><label>Document<span class="ja">対象文書</span></label><input type="file" id="file" required></div>
-      <div class="field"><label>Target authority<span class="ja">請求先（実施機関）</span></label><input type="text" id="target_authority" placeholder="e.g. Mayor of XX City / 例: 〇〇市長" required></div>
+      <div class="field"><label>Target authority<span class="ja">請求先（実施機関）</span></label><input type="text" id="authority" placeholder="e.g. Mayor of XX City / 例: 〇〇市長" required></div>
       <div class="field"><label>Request type<span class="ja">請求の種類</span></label><input type="text" id="request_type" value="行政文書開示請求" required></div>
-      <div class="field"><label>Summary<span class="ja">請求内容の要約</span></label><textarea id="summary" rows="2"></textarea></div>
+      <div class="field"><label>Legal basis<span class="ja">根拠法令・条例</span></label><input type="text" id="legal_basis" value="情報公開法・各自治体情報公開条例"></div>
+      <div class="field">
+        <label>Requested documents<span class="ja">請求する公文書の特定内容</span></label>
+        <textarea id="requested_documents" rows="3" maxlength="330" placeholder="Copy the exact wording from your request -- do not paraphrase or summarize. Do not include names, addresses, or contact info. / 請求書の文言をそのままコピーしてください（要約・言い換えは不可）。氏名・住所・連絡先は書かないでください。"></textarea>
+        <p class="hint">This is recorded on-chain in plain text, permanently and publicly. It must be a verbatim excerpt, not a summary -- the document itself is only ever recorded as a hash below.<span class="ja">この内容はオンチェーンに平文で永久に公開されます。要約ではなく原本からの逐語引用にしてください。文書本体は下のハッシュのみが記録されます。</span></p>
+        <div class="result" id="pii-warning"></div>
+        <label class="checkbox-field" id="pii-ack-wrap" style="display:none;"><input type="checkbox" id="pii-ack"> I confirm this text contains no personal information and want to publish it as-is.<span class="ja">個人情報が含まれないことを確認し、このまま公開します。</span></label>
+      </div>
       <button type="submit">🔏 Notarize<span class="ja">刻印する</span></button>
     </form>
     <div class="result" id="attest-result"></div>
@@ -264,6 +275,52 @@ function setResult(el, html, isError = false) {
   el.innerHTML = html;
 }
 
+// Mirrors pii_scan.py -- kept in sync with that module and with civic-lens's
+// scan_personal_info(), since both flag the same kinds of plaintext that
+// must never be published on-chain without the requester's confirmation.
+const PII_PATTERNS = [
+  ["メールアドレス", /[\w.+-]+@[\w-]+\.[\w.-]+/g],
+  ["電話番号", /0\d{1,4}[-(（]?\d{1,4}[-)）]?\d{3,4}/g],
+  ["郵便番号", /〒?\s?\d{3}-\d{4}/g],
+  ["番地・住所", /\d+\s?(丁目|番地|番\d+号)|\d+-\d+-\d+/g],
+  ["個人の氏名（敬称つき）", /[一-龥々]{2,5}\s?(氏(?!名)|様(?![式態相子])|さん|君|殿)/g],
+  ["12桁の番号（個人番号の可能性）", /(?<!\d)\d{12}(?!\d)/g],
+  ["生年月日", /生年月日/g],
+];
+
+function scanPersonalInfo(text) {
+  const found = [];
+  for (const [label, pattern] of PII_PATTERNS) {
+    for (const m of text.matchAll(pattern)) found.push({ type: label, match: m[0] });
+  }
+  return found;
+}
+
+function normalizeRequestedDocuments(text) {
+  return text.trim().split(/\s+/).join(" ");
+}
+
+const requestedDocsInput = document.getElementById("requested_documents");
+const piiWarningEl = document.getElementById("pii-warning");
+const piiAckWrap = document.getElementById("pii-ack-wrap");
+const piiAckBox = document.getElementById("pii-ack");
+
+function checkPii() {
+  const warnings = scanPersonalInfo(normalizeRequestedDocuments(requestedDocsInput.value));
+  if (warnings.length === 0) {
+    piiWarningEl.classList.remove("show");
+    piiAckWrap.style.display = "none";
+    piiAckBox.checked = false;
+    return warnings;
+  }
+  const list = warnings.map((w) => `${w.type}: "${w.match}"`).join(", ");
+  piiWarningEl.classList.add("show", "warning");
+  piiWarningEl.innerHTML = `⚠️ Possible personal information detected: ${list}<span class="ja"><br>個人情報の可能性がある記述が見つかりました: ${list}</span>`;
+  piiAckWrap.style.display = "flex";
+  return warnings;
+}
+requestedDocsInput.addEventListener("input", checkPii);
+
 document.getElementById("attest-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector("button");
@@ -271,14 +328,27 @@ document.getElementById("attest-form").addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     requireWallet();
+    const requestedDocuments = normalizeRequestedDocuments(requestedDocsInput.value);
+    if (requestedDocuments.length > 330) {
+      throw new Error("Requested documents text is too long (max 330 chars) / 請求内容が長すぎます（上限330文字）");
+    }
+    const warnings = checkPii();
+    if (warnings.length > 0 && !piiAckBox.checked) {
+      throw new Error("Please review the personal-information warning and check the confirmation box, or remove that text / 個人情報の警告を確認し、チェックするか該当箇所を削除してください");
+    }
     setResult(out, "⏳ Please sign in your wallet... / ウォレットで署名してください...");
     const file = document.getElementById("file").files[0];
     const docHash = await sha256Hex(file);
-    const targetAuthority = document.getElementById("target_authority").value;
+    const recordId = "req-" + crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
+    const authority = document.getElementById("authority").value;
     const requestType = document.getElementById("request_type").value;
-    const summary = document.getElementById("summary").value;
+    const legalBasis = document.getElementById("legal_basis").value;
+    const timestamp = Math.floor(Date.now() / 1000);
     const coder = ethers.AbiCoder.defaultAbiCoder();
-    const encodedData = coder.encode(["string", "string", "bytes32", "string"], [targetAuthority, requestType, docHash, summary]);
+    const encodedData = coder.encode(
+      ["string", "string", "string", "string", "bytes32", "uint256", "string"],
+      [recordId, authority, requestType, requestedDocuments, docHash, timestamp, legalBasis]
+    );
     const tx = await eas.attest({
       schema: ATTEST_SCHEMA_UID,
       data: { recipient: ZERO_ADDRESS, expirationTime: 0, revocable: true, refUID: ZERO_BYTES32, data: encodedData, value: 0 },
@@ -358,8 +428,8 @@ async function loadTrending() {
     }
     const formatBreakdown = (breakdown) => breakdown.map((b) => `${b.amount} ${b.currency}`).join(" + ");
     el.innerHTML = `<table>
-      <tr><th>#</th><th>Target authority / 請求先</th><th>Summary / 要約</th><th>Support / 応援</th></tr>
-      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td><a class="tx-link" href="/case/${r.attestation_uid}">${r.target_authority}</a></td><td>${r.summary || r.request_type}</td><td>${r.tip_count} tips (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
+      <tr><th>#</th><th>Target authority / 請求先</th><th>Requested documents / 請求内容</th><th>Support / 応援</th></tr>
+      ${data.map((r, i) => `<tr><td><span class="rank">${i + 1}</span></td><td><a class="tx-link" href="/case/${r.attestation_uid}">${r.target_authority}</a></td><td>${r.requested_documents || r.request_type}</td><td>${r.tip_count} tips (${formatBreakdown(r.breakdown)})</td></tr>`).join("")}
     </table>`;
   } catch (err) {
     el.innerHTML = `<p class="empty">Failed to load / 取得失敗: ${err.message}</p>`;

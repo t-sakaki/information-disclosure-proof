@@ -82,7 +82,7 @@ def build_message(uid: str, reaction: str, timestamp: int) -> str:
     """Must match exactly what the browser signs in case_page.py's JS --
     any drift here breaks signature verification."""
     return (
-        "Disclosure Proof reaction (no gas, not a transaction)\n"
+        "Civic Disclosure Tip reaction (no gas, not a transaction)\n"
         f"case: {uid.lower()}\n"
         f"reaction: {reaction}\n"
         f"timestamp: {timestamp}"

@@ -1,4 +1,4 @@
-# information-disclosure-proof
+# Civic Disclosure Tip (information-disclosure-proof)
 
 行政文書開示請求（Freedom of Information disclosure request）を、
 [EAS (Ethereum Attestation Service)](https://attest.org) を使って
@@ -64,26 +64,41 @@ CLIデモ・API単体テスト用の代替経路としてのみ使い、実運�
 
 ### 1. 開示請求の刻印（トップページ）
 
-トップページ（`static/index.html`）では、請求先・請求種別・請求書ハッシュ・
-要約をEASでオンチェーンに記録する**ことだけ**を行う。投げ銭・応援UIはここには
-なく、刻印が完了すると次項のCaseプレビューページへのリンクが表示される。
+トップページ（`static/index.html`）では、請求先・請求種別・請求内容（原本からの
+逐語引用）・請求書ハッシュ・根拠法令をEASでオンチェーンに記録する**ことだけ**を
+行う。投げ銭・応援UIはここにはなく、刻印が完了すると次項のCaseプレビューページ
+へのリンクが表示される。
+
+このスキーマは civic-lens リポジトリと共通仕様にしている（フィールド名・順序を
+揃えてある）。要約（要約者の解釈・省略が入る自由記述）ではなく、原本からの
+逐語引用（`requestedDocuments`）のみを平文で記録する設計にしているのは、
+「正確な記録」であるべき開示請求の証跡に、記録者の言い換えが構造的に入り込む
+余地を残さないため。公開前には `pii_scan.py`（civic-lens の `scan_personal_info`
+と同じロジック）で氏名・住所等らしき記述を検出し、本人の確認なしには記録しない。
 
 ```
-string targetAuthority,  // 実施機関の正式名称。例: "〇〇市長", "〇〇県知事", "〇〇市教育委員会"
-string requestType,      // 請求の種類。例: "行政文書開示請求"
-bytes32 documentHash,    // 請求書本文のsha256ハッシュ（改ざん検知用）
-string summary           // 請求内容の要約
+string recordId,            // 呼び出し側が割り振るID（例: "req-ab12cd34"）
+string authority,            // 実施機関の正式名称。例: "〇〇市長", "〇〇県知事", "〇〇市教育委員会"
+string requestType,          // 請求の種類。例: "行政文書開示請求"
+string requestedDocuments,   // 請求する公文書の特定内容（原本からの逐語引用。要約・言い換えは不可）
+bytes32 documentHash,        // 請求書本文のsha256ハッシュ（改ざん検知用）
+uint256 timestamp,           // 請求日時（unix time）
+string legalBasis            // 根拠法令・条例。例: "情報公開法"
 ```
 
-Schema UID (Base Sepolia): `0x92cf840e48d7893e83e58e67e6209f0a9ad5b720bafdffc2fd740a38585d549a`
+Schema UID (Base Sepolia): 旧スキーマ（`summary`を含む4フィールド版）は
+`0x92cf840e48d7893e83e58e67e6209f0a9ad5b720bafdffc2fd740a38585d549a` として
+登録済みだったが、上記の新スキーマは別のUIDとして再登録が必要（EASスキーマは
+不変のため）。新しいUIDを`register_schema.py`で発行し、`.env`の
+`EAS_SCHEMA_UID`を更新すること。
 
 ### 2. Caseプレビューページ（`/case/{attestation_uid}`）— 投げ銭・応援・シェアはここで行う
 
 刻印された開示請求1件ごとに発行される独立した公開ページ。**登録フォームとは
 意図的に別の画面**にしてあり、このページだけが以下を担う:
 
-- 請求内容（請求先・種別・要約・文書ハッシュ・請求者アドレス）をオンチェーン
-  データから直接表示
+- 請求内容（請求先・種別・請求する公文書の特定内容・根拠法令・文書ハッシュ・
+  請求者アドレス）をオンチェーンデータから直接表示
 - 投げ銭フォーム（ETH/USDC、応援メッセージ付き）
 - これまでの応援者一覧と応援総額
 - このページ自体へのX共有ボタン
@@ -178,7 +193,7 @@ Namechain上への登録ではなく**、本プロジェクトが独自にデプ
 
 ### 8. 英語自動翻訳（Caseページ）
 
-Caseページの請求先・請求種別・要約は、オンチェーンには日本語で記録されている
+Caseページの請求先・請求種別・請求する公文書の特定内容は、オンチェーンには日本語で記録されている
 （日本の行政に対する実際の開示請求のため）。英語話者（ETHGlobal審査員等）
 のために、[`translate.py`](translate.py)が`GEMINI_API_KEY`が設定されていれば
 Gemini APIで、未設定ならAPIキー不要のMyMemoryにフォールバックして機械翻訳を
@@ -362,7 +377,8 @@ python3 -m venv .venv
 
 ## 提出に向けたTODO
 
-- ~~**デプロイ**~~ ✅ 完了。Vercelにデプロイ済み: **https://information-disclosure-proof.vercel.app**
+- ~~**デプロイ**~~ ✅ 完了。Vercelにデプロイ済み: **https://civic-disclosure-tip.vercel.app**
+  （旧URL `https://information-disclosure-proof.vercel.app` は308リダイレクトで新URLへ転送）
   （`vercel.json`の`rewrites`で`/api/index`（`api/index.py`、`app.py`のFastAPI
   appを再エクスポートするだけのエントリポイント）に流す構成。本番の環境変数は
   `CHAIN_RPC_URL`・`EAS_CONTRACT_ADDRESS`・`EAS_SCHEMA_UID`・`TIP_SCHEMA_UID`・

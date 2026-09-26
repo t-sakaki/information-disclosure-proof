@@ -10,9 +10,9 @@ run JS still see real OGP tags), not a bare registration form.
 
 The page itself is built as a plain HTML string rather than a template
 engine (no new dependency for a single page) using html.escape() on every
-on-chain string, since target_authority/summary/comment are attacker-
-controlled (anyone can attest anything) and are interpolated into HTML
-served to other users' browsers.
+on-chain string, since target_authority/requested_documents/comment are
+attacker-controlled (anyone can attest anything) and are interpolated into
+HTML served to other users' browsers.
 """
 from __future__ import annotations
 
@@ -66,7 +66,11 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
 
     safe_authority = escape(req["target_authority"])
     safe_type = escape(req["request_type"])
-    safe_summary = escape(req["summary"]) if req["summary"] else '<span class="empty-inline">(no summary provided / 要約なし)</span>'
+    safe_documents = (
+        escape(req["requested_documents"])
+        if req["requested_documents"]
+        else '<span class="empty-inline">(no details provided / 詳細なし)</span>'
+    )
     safe_requester = escape(req["requester"])
     safe_doc_hash = escape(req["document_hash"])
     tips_html = _format_tip_rows(case["tips"])
@@ -75,12 +79,22 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
     # Request-details card use the same English text -- a link shared on
     # SNS should preview in English (and the OGP tags are what crawlers
     # that don't run JS actually see), not just the on-page card.
+    #
+    # This is a machine translation of a field that is itself supposed to be
+    # a verbatim excerpt of the request (see attest.py) -- it is shown only
+    # as a labeled convenience alongside the original Japanese, never in
+    # place of it, since a translation is one more layer of interpretation
+    # away from the source text.
     translated_authority = translate_to_english(req["target_authority"])
     translated_type = translate_to_english(req["request_type"])
-    translated_summary = translate_to_english(req["summary"]) if req["summary"] else None
+    translated_documents = translate_to_english(req["requested_documents"]) if req["requested_documents"] else None
 
     title_en = f"{translated_authority or req['target_authority']} — {translated_type or req['request_type']}"
-    description_en = translated_summary or req["summary"] or "On-chain Freedom-of-Information disclosure request notarized via EAS on Base Sepolia."
+    description_en = (
+        translated_documents
+        or req["requested_documents"]
+        or "On-chain Freedom-of-Information disclosure request notarized via EAS on Base Sepolia."
+    )
 
     safe_title = escape(title_en)
     safe_description = escape(description_en[:200])
@@ -99,9 +113,12 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
 
     authority_field = _field_with_translation(safe_authority, translated_authority)
     type_field = _field_with_translation(safe_type, translated_type)
-    summary_field = (
-        _field_with_translation(safe_summary, translated_summary) if req["summary"] else safe_summary
+    documents_field = (
+        _field_with_translation(safe_documents, translated_documents)
+        if req["requested_documents"]
+        else safe_documents
     )
+    legal_basis_field = escape(req["legal_basis"]) if req["legal_basis"] else '<span class="empty-inline">—</span>'
     heading_authority = escape(translated_authority) if translated_authority else safe_authority
     heading_type = escape(translated_type) if translated_type else safe_type
 
@@ -110,14 +127,14 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{safe_title} · Disclosure Proof</title>
+<title>{safe_title} · Civic Disclosure Tip</title>
 <meta name="description" content="{safe_description}">
 
 <meta property="og:type" content="article">
 <meta property="og:title" content="{safe_title}">
 <meta property="og:description" content="{safe_description}">
 <meta property="og:url" content="{escape(page_url)}">
-<meta property="og:site_name" content="Disclosure Proof">
+<meta property="og:site_name" content="Civic Disclosure Tip">
 <meta property="og:image" content="{escape(og_image_url)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -257,7 +274,7 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
 <div class="shell">
   <div class="header-row">
     <div>
-      <a class="back" href="/">&larr; Disclosure Proof</a>
+      <a class="back" href="/">&larr; Civic Disclosure Tip</a>
       <h1>{heading_authority} &mdash; {heading_type}<span class="ja">{safe_authority} &mdash; {safe_type}</span></h1>
       <p class="meta">Notarized by {escape(_short(req['requester']))} on {escape(req['recorded_at']) if isinstance(req['recorded_at'], str) else req['recorded_at']}</p>
     </div>
@@ -271,7 +288,8 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
         <dl>
           <dt>Target authority<span class="ja">請求先</span></dt><dd>{authority_field}</dd>
           <dt>Request type<span class="ja">請求の種類</span></dt><dd>{type_field}</dd>
-          <dt>Summary<span class="ja">要約</span></dt><dd>{summary_field}</dd>
+          <dt>Requested documents<span class="ja">請求する公文書の特定内容（原本からの逐語引用）</span></dt><dd>{documents_field}</dd>
+          <dt>Legal basis<span class="ja">根拠法令・条例</span></dt><dd>{legal_basis_field}</dd>
           <dt>Document hash<span class="ja">文書ハッシュ</span></dt><dd class="mono">{safe_doc_hash}</dd>
           <dt>Requester<span class="ja">請求者</span></dt><dd class="mono"><a href="{EXPLORER_ADDRESS_URL}/{safe_requester}" target="_blank">{safe_requester}</a></dd>
           <dt>Attestation<span class="ja">証明レコード</span></dt><dd class="mono"><a href="{EXPLORER_ATTESTATION_URL}/{escape(uid)}" target="_blank">{escape(_short(uid))} &#8599;</a></dd>
@@ -466,7 +484,7 @@ document.querySelectorAll(".reaction-btn").forEach((btn) => {{
     try {{
       const address = await signer.getAddress();
       const timestamp = Math.floor(Date.now() / 1000);
-      const message = `Disclosure Proof reaction (no gas, not a transaction)\ncase: ${{CASE_UID.toLowerCase()}}\nreaction: ${{reaction}}\ntimestamp: ${{timestamp}}`;
+      const message = `Civic Disclosure Tip reaction (no gas, not a transaction)\ncase: ${{CASE_UID.toLowerCase()}}\nreaction: ${{reaction}}\ntimestamp: ${{timestamp}}`;
       const signature = await signer.signMessage(message);
       const res = await fetch(`/api/case/${{CASE_UID}}/reactions`, {{
         method: "POST",
