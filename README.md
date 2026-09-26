@@ -1,4 +1,4 @@
-# Civic Disclosure Tip (information-disclosure-proof)
+# Civic Disclosure Tip
 
 行政文書開示請求（Freedom of Information disclosure request）を、
 [EAS (Ethereum Attestation Service)](https://attest.org) を使って
