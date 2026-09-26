@@ -176,12 +176,50 @@ Namechain上への登録ではなく**、本プロジェクトが独自にデプ
 各アドレスについて団体サブネーム（`org_subname`）→従来のENS名
 （`ens_name`）→アドレス省略表記の順で表示名を解決する。
 
-### 8. フロントエンド
+### 8. 英語自動翻訳（Caseページ）
+
+Caseページの請求先・請求種別・要約は、オンチェーンには日本語で記録されている
+（日本の行政に対する実際の開示請求のため）。英語話者（ETHGlobal審査員等）
+のために、[`translate.py`](translate.py)が`GEMINI_API_KEY`が設定されていれば
+Gemini APIで、未設定ならAPIキー不要のMyMemoryにフォールバックして機械翻訳を
+生成し、原文の日本語と並べて「machine-translated from Japanese」と明示した
+上で表示する。翻訳はあくまで補助であり、日本語原文が常に正（オンチェーンの
+真実）である。
+
+### 9. リアクション（👀🙋🔁、Upstash Redis）
+
+投げ銭とは別に、より気軽な「反応」を3種類に限定して用意している（自由記述の
+コメント欄はなし、荒らし対策）:
+
+- 👀 見守る（watch）
+- 🙋 私も知りたい（want_to_know）
+- 🔁 自分の自治体でも（fork_local）
+
+投げ銭と違い、絵文字1つの反応にガス代・オンチェーンtxを要求するのはUXとして
+過剰なので、[`reactions.py`](reactions.py)ではウォレットの**署名のみ**
+（`personal_sign`、ガス代なし・トランザクションではない）で本人確認し、
+Upstash Redis（Setのトグル）に記録する。1ウォレット1種類につき1回まで、
+誰が反応したかは公開せず件数のみ表示する。`UPSTASH_REDIS_REST_URL` /
+`UPSTASH_REDIS_REST_TOKEN`が未設定でもアプリ自体は起動し、反応機能だけが
+0件表示のまま無効化される。
+
+### 10. Uniswap価格参照（読み取り専用、スポンサー技術: Uniswap）
+
+Caseページで投げ銭額（ETH）を入力すると、「&asymp; $26.88 (via Uniswap)」の
+ようにドル換算の目安が表示される。[`uniswap_price.py`](uniswap_price.py)が
+Baseメインネット上のUniswap V3 Quoter（`quoteExactInputSingle`を`eth_call`
+で呼ぶ読み取り専用シミュレーション）に、実際にUniswapの公式フロントエンドが
+見積もりを取るのと同じ方法で問い合わせる。ウォレット署名・ガス代・実際の
+スワップは一切発生しない。投げ銭自体はこれまで通りBase Sepolia上でETH/USDC
+を直接送金する（Base SepoliaにUniswapの公式デプロイ・流動性がある保証がない
+ため、投げ銭のスワップ機能そのものはスコープ外とした。「今後の展望」参照）。
+
+### 11. フロントエンド
 
 - `static/index.html` — ウォレット接続・開示請求の刻印・団体サブネーム登録・
   リーダーボード・急上昇ランキング閲覧
 - Caseページ（`/case/{uid}`、`case_page.py`が生成）— 請求内容の確認・
-  投げ銭・応援者一覧・SNSシェア
+  英語自動翻訳・投げ銭・リアクション・応援者一覧・SNSシェア
 
 ## 今後の展望
 
@@ -210,6 +248,14 @@ Namechain上への登録ではなく**、本プロジェクトが独自にデプ
   観点では両者を分離できるようにする余地があり、将来の改訂課題として残す。
 - **Civic Lensとの連携API**: Civic Lensで生成した開示請求書を、そのまま
   本プロジェクトのCase刻印に渡せるAPI連携。
+- **投げ銭のUniswapスワップ対応**: 現状「10. Uniswap価格参照」は読み取り
+  専用のドル換算表示のみで、実際のスワップは行っていない。Uniswapは
+  Base Sepolia向けの公式デプロイ・流動性が確認できなかったため（Uniswapの
+  公式SDKが対応チェーンとして列挙しているのはBase本番網とEthereum Sepolia
+  等で、Base Sepoliaは含まれていない）、投げ銭で使う通貨をその場でETH/USDC
+  にスワップする機能は今回のハッカソン提出範囲には含めなかった。将来的には
+  投げ銭自体をUniswapが公式対応するチェーンに載せるか、Base本番網への移行と
+  合わせて対応したい。
 
 ## 動作方法
 
@@ -235,9 +281,18 @@ cp .env.example .env
 - `ENSV2_REGISTRY_ADDRESS` — 団体サブネームレジストリのコントラクトアドレス
   （下記「3. ENSv2団体サブネームレジストリのデプロイ」参照。既存のデプロイ済み
   アドレス `0x67e48e5e0DA4a160D0Cb5cE12ac311087ed68F1D` を使う場合は設定するだけでよい）
+- `GEMINI_API_KEY` — Caseページの英語自動翻訳用（**任意**。未設定なら
+  APIキー不要のMyMemoryにフォールバックする。無料枠は
+  [aistudio.google.com/apikey](https://aistudio.google.com/apikey)で発行）
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — リアクション機能用
+  （**任意**。未設定でもアプリは起動し、反応機能だけ0件表示で無効化される。
+  [upstash.com](https://upstash.com)の無料枠でRedisデータベースを作成し、
+  REST APIのURL・トークンを設定する）
 
 ブラウザからフロントエンド経由で使う場合は、MetaMask等のウォレットが
-署名するためサーバー側の秘密鍵は使われない。
+署名するためサーバー側の秘密鍵は使われない。Uniswap価格参照
+（`uniswap_price.py`）は公開のBaseメインネットRPCを直接使うため、
+環境変数の設定は不要。
 
 ### 2. 依存関係のインストール
 
@@ -284,10 +339,15 @@ python3 -m venv .venv
 - **オンチェーン証明**: EAS (Ethereum Attestation Service)
 - **ウォレット連携**: ethers.js + MetaMask（ユーザー本人による直接署名）
 - **通貨**: ETH, USDC（Circle公式Base Sepoliaテストネットコントラクト）
-- **スポンサー技術**: ENS（応援者・紹介者のアドレス表示に利用）、
-  ENSv2互換の団体サブネームレジストリ（自己ホスト、Base Sepolia）
-- **AI技術**: なし（本プロジェクトはWeb3インフラに特化。AI連携は
-  「作成」層を担う姉妹プロジェクトCivic Lens側の役割）
+- **スポンサー技術**:
+  - **ENS**（$10,000枠）— 応援者・紹介者のアドレス表示（従来のENS逆引き）、
+    およびENSv2互換の団体サブネームレジストリ（自己ホスト、Base Sepolia）
+  - **Uniswap**（$10,000枠）— Baseメインネット上のUniswap V3 Quoterから
+    読み取り専用でETH/USDC価格を取得し、Caseページの投げ銭額にドル換算
+    表示を添える（実スワップなし）
+- **AI技術**: Gemini API（Caseページの英語自動翻訳、任意・未設定ならMyMemoryに
+  フォールバック）。本プロジェクトの中心はWeb3インフラで、開示請求書の生成
+  そのもののAI活用は「作成」層を担う姉妹プロジェクトCivic Lens側の役割
 - **実行環境**: FastAPI + 静的HTML/JSフロントエンド + サーバーサイド
   レンダリングのCaseプレビューページ
 

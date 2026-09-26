@@ -194,6 +194,8 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
   .amount-input-wrap {{ position: relative; }}
   .amount-input-wrap input {{ padding-right: 4.2rem; font-weight: 700; font-size: 1.15rem; }}
   .amount-suffix {{ position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.85rem; font-weight: 600; pointer-events: none; }}
+  .price-hint {{ font-size: 0.76rem; color: var(--text-dim); margin-top: 0.3rem; min-height: 1em; }}
+  .price-hint .src {{ opacity: 0.7; }}
 
   .chip-row {{ display: flex; flex-wrap: wrap; gap: 0.5rem; }}
   .chip {{ padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 600; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }}
@@ -315,6 +317,7 @@ def render_case_html(uid: str, case: dict[str, Any], base_url: str) -> str:
               <span class="amount-suffix" id="amount-suffix">ETH</span>
             </div>
             <div class="chip-row" id="amount-chips"></div>
+            <div class="price-hint" id="price-hint"></div>
           </div>
           <div class="field"><label>Message <span class="ja">応援メッセージ（任意）</span></label><input type="text" id="comment" placeholder="Keep going! / 応援しています！"></div>
           <button type="submit" class="btn-primary" id="tip-submit" disabled title="Connect your wallet first / 先にウォレットを接続してください">
@@ -375,6 +378,7 @@ function renderAmountChips() {{
 }}
 document.getElementById("amount").addEventListener("input", () => {{
   document.querySelectorAll("#amount-chips .chip").forEach((c) => c.classList.toggle("active", c.dataset.amount === document.getElementById("amount").value));
+  updatePriceHint();
 }});
 
 document.getElementById("currency-toggle").addEventListener("click", (e) => {{
@@ -384,8 +388,24 @@ document.getElementById("currency-toggle").addEventListener("click", (e) => {{
   document.querySelectorAll("#currency-toggle .segmented-btn").forEach((b) => b.classList.toggle("active", b === btn));
   document.getElementById("amount-suffix").textContent = selectedCurrency;
   renderAmountChips();
+  updatePriceHint();
 }});
 renderAmountChips();
+
+// Read-only USD reference price (Uniswap V3 Quoter on Base mainnet, no
+// wallet/gas involved -- see uniswap_price.py). Purely informational: it
+// never affects what's actually sent, just gives ETH tippers a sense of
+// scale in dollar terms.
+let ethUsdPrice = null;
+fetch("/api/price/eth-usd").then((r) => r.json()).then((d) => {{ ethUsdPrice = d.usd_per_eth; updatePriceHint(); }}).catch(() => {{}});
+
+function updatePriceHint() {{
+  const hint = document.getElementById("price-hint");
+  const amount = parseFloat(document.getElementById("amount").value);
+  if (selectedCurrency !== "ETH" || !ethUsdPrice || !amount) {{ hint.textContent = ""; return; }}
+  const usd = (amount * ethUsdPrice).toLocaleString(undefined, {{ maximumFractionDigits: 2 }});
+  hint.innerHTML = `&asymp; $${{usd}} <span class="src">(via Uniswap)</span>`;
+}}
 
 async function connectWallet() {{
   const out = document.getElementById("wallet-result");

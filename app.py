@@ -51,6 +51,11 @@ POST /api/case/{uid}/reactions
     signatureはブラウザがreactions.build_message()と同じ文言に対して
     personal_signで署名したもの（ガス代なし、トランザクションではない）。
     トグル動作（すでに反応済みなら取り消す）。
+
+GET /api/price/eth-usd
+    UniswapのオンチェーンQuoter（Baseメインネット、読み取り専用・
+    ガス代なし）から1ETHあたりのUSDC建て参考価格を取得する。
+    スワップは一切実行しない、投げ銭額のドル換算表示用。
 """
 import os
 
@@ -67,6 +72,7 @@ from og_image import render_case_og_image
 from reactions import ReactionsNotConfigured, get_reactions, toggle_reaction
 from tip import send_tip
 from trending import trending_requests
+from uniswap_price import get_eth_usd_price
 
 # Absolute path so this resolves the same way whether run via `uvicorn
 # app:app` from the repo root, or bundled and invoked from an arbitrary
@@ -169,6 +175,11 @@ async def leaderboard():
 @app.get("/trending")
 async def trending(window_hours: int = 24, limit: int = 10):
     return trending_requests(window_hours, limit)
+
+
+@app.get("/api/price/eth-usd")
+async def price_eth_usd():
+    return {"usd_per_eth": get_eth_usd_price()}
 
 
 @app.get("/health")
