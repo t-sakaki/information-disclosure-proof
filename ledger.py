@@ -198,7 +198,16 @@ def fetch_requests_by_ids(ids: list[str]) -> dict[str, dict[str, Any]]:
     if not ids:
         return {}
     data = _graphql(REQUESTS_BY_IDS_QUERY, {"ids": ids})
-    return {a["id"]: _request_from_attestation(a) for a in data["attestations"]}
+    result = {}
+    for a in data["attestations"]:
+        try:
+            result[a["id"]] = _request_from_attestation(a)
+        except Exception:
+            # Not every referenced id is a request-schema attestation (e.g. a
+            # tip refers to a request registered under an older schema
+            # version), so skip anything that doesn't decode as one.
+            continue
+    return result
 
 
 def fetch_tips_for(ref_uid: str) -> list[dict[str, Any]]:
