@@ -23,7 +23,13 @@ from web3 import Web3
 load_dotenv()
 
 RPC_URL = os.environ["CHAIN_RPC_URL"]
-PRIVATE_KEY = os.environ["CHAIN_PRIVATE_KEY"]
+# CHAIN_PRIVATE_KEY is only used by submit_attestation() below, a
+# server-side-signing fallback for CLI/API use. The real product flow
+# (static/index.html, case_page.py) signs directly with the user's own
+# wallet in the browser and never touches this key, so it's read lazily
+# here rather than required at import time -- a deployment that only
+# serves the wallet-signed flow doesn't need this secret configured at all.
+PRIVATE_KEY = os.environ.get("CHAIN_PRIVATE_KEY")
 EAS_CONTRACT_ADDRESS = Web3.to_checksum_address(os.environ["EAS_CONTRACT_ADDRESS"])
 EAS_SCHEMA_UID = os.environ["EAS_SCHEMA_UID"]
 
@@ -88,6 +94,12 @@ def build_schema_data(target_authority: str, request_type: str, doc_hash: bytes,
 def submit_attestation(
     document_bytes: bytes, target_authority: str, request_type: str, summary: str
 ) -> dict:
+    if not PRIVATE_KEY:
+        raise RuntimeError(
+            "CHAIN_PRIVATE_KEY is not configured on this deployment. "
+            "Use the wallet-signed flow in the browser instead (this "
+            "server-signing fallback is for CLI/API use only)."
+        )
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
     account = w3.eth.account.from_key(PRIVATE_KEY)
     eas = w3.eth.contract(address=EAS_CONTRACT_ADDRESS, abi=EAS_ABI)

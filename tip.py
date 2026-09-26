@@ -29,7 +29,10 @@ from attest import EAS_ABI, ZERO_ADDRESS
 load_dotenv()
 
 RPC_URL = os.environ["CHAIN_RPC_URL"]
-PRIVATE_KEY = os.environ["CHAIN_PRIVATE_KEY"]
+# See the matching comment in attest.py: this is only used by the
+# server-signing fallback below, not by the real (wallet-signed) tip flow
+# on the Case page, so it's read lazily rather than required to boot.
+PRIVATE_KEY = os.environ.get("CHAIN_PRIVATE_KEY")
 EAS_CONTRACT_ADDRESS = Web3.to_checksum_address(os.environ["EAS_CONTRACT_ADDRESS"])
 TIP_SCHEMA_UID = os.environ["TIP_SCHEMA_UID"]
 
@@ -55,6 +58,12 @@ def send_tip(
     referrer_address: str = ZERO_ADDRESS,
     token_address: str = ZERO_ADDRESS,
 ) -> dict:
+    if not PRIVATE_KEY:
+        raise RuntimeError(
+            "CHAIN_PRIVATE_KEY is not configured on this deployment. "
+            "Use the wallet-signed flow on the Case page instead (this "
+            "server-signing fallback is for CLI/API use only)."
+        )
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
     account = w3.eth.account.from_key(PRIVATE_KEY)
     recipient = Web3.to_checksum_address(recipient_address)
